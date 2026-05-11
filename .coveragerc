@@ -1,0 +1,17 @@
+[run]
+source = .
+relative_files = true
+omit =
+    */migrations/*
+    */tests/*
+    */__init__.py
+    */apps.py
+    */wsgi.py
+    manage.py
+    .venv/*
+    core/settings.py
+    core/urls.py
+
+[report]
+skip_empty = true
+show_missing = true
