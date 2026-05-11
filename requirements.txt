@@ -1,3 +1,17 @@
 asgiref==3.11.1
+coverage==7.14.1
 django==6.0.5
+factory-boy==3.3.3
+faker==40.19.1
+gunicorn==26.0.0
+iniconfig==2.3.0
+packaging==26.2
+pluggy==1.6.0
+pygments==2.20.0
+pytest==9.0.3
+pytest-cov==7.1.0
+pytest-django==4.12.0
+python-dotenv==1.2.2
 sqlparse==0.5.5
+structlog==25.5.0
+whitenoise==6.12.0
