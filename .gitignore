@@ -205,6 +205,8 @@ tempCodeRunnerFile.py
 
 # Ruff stuff:
 .ruff_cache/
+ruff.toml
+.ruff.toml
 
 # PyPI configuration file
 .pypirc
@@ -226,3 +228,4 @@ mediafiles/
 .DS_Store
 
 .input
+.codex

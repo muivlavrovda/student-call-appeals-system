@@ -15,14 +15,14 @@ def env_bool(name: str, default: str = "false") -> bool:
     return getenv(name, default).lower() == "true"
 
 
+def env_list(name: str, default: str) -> list[str]:
+    return [item.strip() for item in getenv(name, default).split(",") if item.strip()]
+
+
 SECRET_KEY = getenv("DJ_SECRET_KEY", "insecure-django-secret-key")
 DEBUG = env_bool("DJ_DEBUG")
 
-ALLOWED_HOSTS = [
-    host.strip()
-    for host in getenv("DJ_HOSTS", "127.0.0.1,localhost").split(",")
-    if host.strip()
-]
+ALLOWED_HOSTS = env_list("DJ_HOSTS", "127.0.0.1,localhost")
 CSRF_TRUSTED_ORIGINS = [f"https://{host}" for host in ALLOWED_HOSTS]
 
 
