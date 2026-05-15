@@ -27,10 +27,13 @@ def create_appeal(
     created_at = timezone.now()
     selected_department = department or category.department
 
-    _validate_appeal_catalogs(
-        category=category,
-        department=selected_department,
-    )
+    errors = {}
+    if not category.is_active:
+        errors["category"] = _("Selected appeal category is inactive.")
+    if not selected_department.is_active:
+        errors["department"] = _("Selected department is inactive.")
+    if errors:
+        raise ValidationError(errors)
 
     appeal = Appeal(
         student_full_name=student_full_name,
@@ -47,7 +50,7 @@ def create_appeal(
 
     with transaction.atomic():
         appeal.save()
-        AppealHistoryEvent.objects.create(
+        _create_history_event(
             appeal=appeal,
             actor=created_by,
             event_type=AppealHistoryEvent.EventType.CREATED,
@@ -57,18 +60,59 @@ def create_appeal(
     return appeal
 
 
-def _validate_appeal_catalogs(
+def accept_appeal(
     *,
-    category: AppealCategory,
-    department: Department,
-) -> None:
-    errors = {}
+    appeal: Appeal,
+    accepted_by: User,
+) -> Appeal:
+    """Вызывается, когда сотрудник принимает новую заявку в работу.
 
-    if not category.is_active:
-        errors["category"] = _("Selected appeal category is inactive.")
+    Проверка прав доступа выполняется до вызова функции, а здесь фиксируется
+    переход состояния и запись в истории заявки.
+    """
+    accepted_at = timezone.now()
 
-    if not department.is_active:
-        errors["department"] = _("Selected department is inactive.")
+    with transaction.atomic():
+        locked_appeal = Appeal.objects.select_for_update().get(pk=appeal.pk)
+        if locked_appeal.status != Appeal.Status.NEW:
+            raise ValidationError(
+                {
+                    "status": _("Only new appeals can be accepted."),
+                }
+            )
 
-    if errors:
-        raise ValidationError(errors)
+        locked_appeal.status = Appeal.Status.IN_PROGRESS
+        locked_appeal.accepted_by = accepted_by
+        locked_appeal.accepted_at = accepted_at
+        locked_appeal.full_clean()
+        locked_appeal.save(
+            update_fields=[
+                "status",
+                "accepted_by",
+                "accepted_at",
+                "updated_at",
+            ],
+        )
+        _create_history_event(
+            appeal=locked_appeal,
+            actor=accepted_by,
+            event_type=AppealHistoryEvent.EventType.ACCEPTED,
+            message=_("Appeal accepted."),
+        )
+
+    return locked_appeal
+
+
+def _create_history_event(
+    *,
+    appeal: Appeal,
+    actor: User,
+    event_type: AppealHistoryEvent.EventType,
+    message: str,
+) -> AppealHistoryEvent:
+    return AppealHistoryEvent.objects.create(
+        appeal=appeal,
+        actor=actor,
+        event_type=event_type,
+        message=message,
+    )

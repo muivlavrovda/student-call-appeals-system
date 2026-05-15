@@ -5,8 +5,8 @@ import pytest
 from django.core.exceptions import ValidationError
 
 from appeals.models import Appeal, AppealHistoryEvent
-from appeals.services import create_appeal
-from appeals.tests.factories import AppealCategoryFactory, DepartmentFactory
+from appeals.services import accept_appeal, create_appeal
+from appeals.tests.factories import AppealCategoryFactory, AppealFactory, DepartmentFactory
 from users.tests.factories import UserFactory
 
 
@@ -121,4 +121,59 @@ def test_create_appeal_runs_model_validation():
 
     assert "student_phone" in error.value.message_dict
     assert Appeal.objects.count() == 0
+    assert AppealHistoryEvent.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+@pytest.mark.integration
+def test_accept_appeal_sets_worker_started_at_status_and_history():
+    accepted_at = datetime(2026, 1, 10, 10, 30, tzinfo=UTC)
+    appeal = AppealFactory()
+    worker = UserFactory()
+
+    with patch("appeals.services.timezone.now", return_value=accepted_at):
+        accepted_appeal = accept_appeal(
+            appeal=appeal,
+            accepted_by=worker,
+        )
+
+    assert accepted_appeal.status == Appeal.Status.IN_PROGRESS
+    assert accepted_appeal.accepted_by == worker
+    assert accepted_appeal.accepted_at == accepted_at
+
+    appeal.refresh_from_db()
+    assert appeal.status == Appeal.Status.IN_PROGRESS
+    assert appeal.accepted_by == worker
+    assert appeal.accepted_at == accepted_at
+
+    event = AppealHistoryEvent.objects.get(appeal=appeal)
+    assert event.actor == worker
+    assert event.event_type == AppealHistoryEvent.EventType.ACCEPTED
+    assert event.message == "Appeal accepted."
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    "status",
+    [
+        Appeal.Status.IN_PROGRESS,
+        Appeal.Status.CLOSED,
+    ],
+)
+def test_accept_appeal_rejects_appeals_that_are_not_new(status):
+    appeal = AppealFactory(status=status)
+
+    with pytest.raises(ValidationError) as error:
+        accept_appeal(
+            appeal=appeal,
+            accepted_by=UserFactory(),
+        )
+
+    assert "status" in error.value.message_dict
+    appeal.refresh_from_db()
+    assert appeal.status == status
+    assert appeal.accepted_by is None
+    assert appeal.accepted_at is None
     assert AppealHistoryEvent.objects.count() == 0
