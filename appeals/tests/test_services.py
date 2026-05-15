@@ -5,7 +5,7 @@ import pytest
 from django.core.exceptions import ValidationError
 
 from appeals.models import Appeal, AppealComment, AppealHistoryEvent
-from appeals.services import accept_appeal, add_appeal_comment, create_appeal
+from appeals.services import accept_appeal, add_appeal_comment, close_appeal, create_appeal
 from appeals.tests.factories import AppealCategoryFactory, AppealFactory, DepartmentFactory
 from users.tests.factories import UserFactory
 
@@ -246,4 +246,91 @@ def test_add_appeal_comment_runs_model_validation():
 
     assert "text" in error.value.message_dict
     assert AppealComment.objects.count() == 0
+    assert AppealHistoryEvent.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+@pytest.mark.integration
+def test_close_appeal_sets_result_closed_at_status_and_history():
+    closed_at = datetime(2026, 1, 10, 11, 0, tzinfo=UTC)
+    appeal = AppealFactory(status=Appeal.Status.IN_PROGRESS)
+    worker = UserFactory()
+
+    with patch("appeals.services.timezone.now", return_value=closed_at):
+        closed_appeal = close_appeal(
+            appeal=appeal,
+            closed_by=worker,
+            result="  справка   подготовлена  ",
+        )
+
+    assert closed_appeal.status == Appeal.Status.CLOSED
+    assert closed_appeal.result == "справка подготовлена"
+    assert closed_appeal.closed_at == closed_at
+
+    appeal.refresh_from_db()
+    assert appeal.status == Appeal.Status.CLOSED
+    assert appeal.result == "справка подготовлена"
+    assert appeal.closed_at == closed_at
+
+    event = AppealHistoryEvent.objects.get(appeal=appeal)
+    assert event.actor == worker
+    assert event.event_type == AppealHistoryEvent.EventType.CLOSED
+    assert event.message == "Appeal closed."
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+@pytest.mark.integration
+def test_close_appeal_allows_new_appeals():
+    appeal = AppealFactory(status=Appeal.Status.NEW)
+
+    closed_appeal = close_appeal(
+        appeal=appeal,
+        closed_by=UserFactory(),
+        result="Решено во время звонка",
+    )
+
+    assert closed_appeal.status == Appeal.Status.CLOSED
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_close_appeal_rejects_blank_result():
+    appeal = AppealFactory(status=Appeal.Status.IN_PROGRESS)
+
+    with pytest.raises(ValidationError) as error:
+        close_appeal(
+            appeal=appeal,
+            closed_by=UserFactory(),
+            result="   ",
+        )
+
+    assert "result" in error.value.message_dict
+    appeal.refresh_from_db()
+    assert appeal.status == Appeal.Status.IN_PROGRESS
+    assert appeal.result == ""
+    assert appeal.closed_at is None
+    assert AppealHistoryEvent.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_close_appeal_rejects_closed_appeals():
+    appeal = AppealFactory(
+        status=Appeal.Status.CLOSED,
+        result="Уже закрыто",
+        closed_at=datetime(2026, 1, 9, 11, 0, tzinfo=UTC),
+    )
+
+    with pytest.raises(ValidationError) as error:
+        close_appeal(
+            appeal=appeal,
+            closed_by=UserFactory(),
+            result="Новый результат",
+        )
+
+    assert "status" in error.value.message_dict
+    appeal.refresh_from_db()
+    assert appeal.result == "Уже закрыто"
     assert AppealHistoryEvent.objects.count() == 0

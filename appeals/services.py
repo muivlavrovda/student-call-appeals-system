@@ -5,7 +5,14 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from appeals.models import Appeal, AppealCategory, AppealComment, AppealHistoryEvent, Department
+from appeals.models import (
+    Appeal,
+    AppealCategory,
+    AppealComment,
+    AppealHistoryEvent,
+    Department,
+    normalize_spaces,
+)
 from users.models import User
 
 
@@ -138,6 +145,57 @@ def add_appeal_comment(
         )
 
     return comment
+
+
+def close_appeal(
+    *,
+    appeal: Appeal,
+    closed_by: User,
+    result: str,
+) -> Appeal:
+    """Вызывается, когда оператор или сотрудник закрывает обработанную заявку.
+
+    Проверка прав доступа выполняется до вызова функции, а здесь сохраняется
+    результат обработки, финальный статус и события истории.
+    """
+    closed_at = timezone.now()
+    normalized_result = normalize_spaces(result)
+    if not normalized_result:
+        raise ValidationError(
+            {
+                "result": _("Appeal result is required to close appeal."),
+            }
+        )
+
+    with transaction.atomic():
+        locked_appeal = Appeal.objects.select_for_update().get(pk=appeal.pk)
+        if locked_appeal.status == Appeal.Status.CLOSED:
+            raise ValidationError(
+                {
+                    "status": _("Appeal is already closed."),
+                }
+            )
+
+        locked_appeal.result = normalized_result
+        locked_appeal.status = Appeal.Status.CLOSED
+        locked_appeal.closed_at = closed_at
+        locked_appeal.full_clean()
+        locked_appeal.save(
+            update_fields=[
+                "result",
+                "status",
+                "closed_at",
+                "updated_at",
+            ],
+        )
+        _create_history_event(
+            appeal=locked_appeal,
+            actor=closed_by,
+            event_type=AppealHistoryEvent.EventType.CLOSED,
+            message=_("Appeal closed."),
+        )
+
+    return locked_appeal
 
 
 def _create_history_event(
