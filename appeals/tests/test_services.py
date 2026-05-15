@@ -4,8 +4,8 @@ from unittest.mock import patch
 import pytest
 from django.core.exceptions import ValidationError
 
-from appeals.models import Appeal, AppealHistoryEvent
-from appeals.services import accept_appeal, create_appeal
+from appeals.models import Appeal, AppealComment, AppealHistoryEvent
+from appeals.services import accept_appeal, add_appeal_comment, create_appeal
 from appeals.tests.factories import AppealCategoryFactory, AppealFactory, DepartmentFactory
 from users.tests.factories import UserFactory
 
@@ -176,4 +176,74 @@ def test_accept_appeal_rejects_appeals_that_are_not_new(status):
     assert appeal.status == status
     assert appeal.accepted_by is None
     assert appeal.accepted_at is None
+    assert AppealHistoryEvent.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+@pytest.mark.integration
+def test_add_appeal_comment_creates_comment_and_history():
+    appeal = AppealFactory(status=Appeal.Status.IN_PROGRESS)
+    author = UserFactory()
+
+    comment = add_appeal_comment(
+        appeal=appeal,
+        author=author,
+        text="Проверили документы",
+    )
+
+    assert comment.appeal == appeal
+    assert comment.author == author
+    assert comment.text == "Проверили документы"
+
+    event = AppealHistoryEvent.objects.get(appeal=appeal)
+    assert event.actor == author
+    assert event.event_type == AppealHistoryEvent.EventType.COMMENT_ADDED
+    assert event.message == "Comment added."
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+@pytest.mark.integration
+def test_add_appeal_comment_allows_new_appeals():
+    appeal = AppealFactory(status=Appeal.Status.NEW)
+
+    comment = add_appeal_comment(
+        appeal=appeal,
+        author=UserFactory(),
+        text="Оператор уточнил детали",
+    )
+
+    assert comment.appeal == appeal
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_add_appeal_comment_rejects_closed_appeals():
+    appeal = AppealFactory(status=Appeal.Status.CLOSED)
+
+    with pytest.raises(ValidationError) as error:
+        add_appeal_comment(
+            appeal=appeal,
+            author=UserFactory(),
+            text="Новый комментарий",
+        )
+
+    assert "status" in error.value.message_dict
+    assert AppealComment.objects.count() == 0
+    assert AppealHistoryEvent.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_add_appeal_comment_runs_model_validation():
+    with pytest.raises(ValidationError) as error:
+        add_appeal_comment(
+            appeal=AppealFactory(),
+            author=UserFactory(),
+            text="",
+        )
+
+    assert "text" in error.value.message_dict
+    assert AppealComment.objects.count() == 0
     assert AppealHistoryEvent.objects.count() == 0

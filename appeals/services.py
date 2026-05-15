@@ -5,7 +5,7 @@ from django.db import transaction
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
-from appeals.models import Appeal, AppealCategory, AppealHistoryEvent, Department
+from appeals.models import Appeal, AppealCategory, AppealComment, AppealHistoryEvent, Department
 from users.models import User
 
 
@@ -101,6 +101,43 @@ def accept_appeal(
         )
 
     return locked_appeal
+
+
+def add_appeal_comment(
+    *,
+    appeal: Appeal,
+    author: User,
+    text: str,
+) -> AppealComment:
+    """Вызывается, когда сотрудник добавляет комментарий к открытой заявке.
+
+    Проверка прав доступа выполняется до вызова функции, а здесь создается
+    сам комментарий и запись в истории заявки.
+    """
+    with transaction.atomic():
+        locked_appeal = Appeal.objects.select_for_update().get(pk=appeal.pk)
+        if locked_appeal.status == Appeal.Status.CLOSED:
+            raise ValidationError(
+                {
+                    "status": _("Closed appeals cannot be commented."),
+                }
+            )
+
+        comment = AppealComment(
+            appeal=locked_appeal,
+            author=author,
+            text=text,
+        )
+        comment.full_clean()
+        comment.save()
+        _create_history_event(
+            appeal=locked_appeal,
+            actor=author,
+            event_type=AppealHistoryEvent.EventType.COMMENT_ADDED,
+            message=_("Comment added."),
+        )
+
+    return comment
 
 
 def _create_history_event(
