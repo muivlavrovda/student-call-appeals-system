@@ -5,7 +5,13 @@ import pytest
 from django.core.exceptions import ValidationError
 
 from appeals.models import Appeal, AppealComment, AppealHistoryEvent
-from appeals.services import accept_appeal, add_appeal_comment, close_appeal, create_appeal
+from appeals.services import (
+    accept_appeal,
+    add_appeal_comment,
+    close_appeal,
+    create_appeal,
+    transfer_appeal,
+)
 from appeals.tests.factories import AppealCategoryFactory, AppealFactory, DepartmentFactory
 from users.tests.factories import UserFactory
 
@@ -333,4 +339,195 @@ def test_close_appeal_rejects_closed_appeals():
     assert "status" in error.value.message_dict
     appeal.refresh_from_db()
     assert appeal.result == "Уже закрыто"
+    assert AppealHistoryEvent.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+@pytest.mark.integration
+def test_transfer_appeal_changes_department_and_history():
+    appeal = AppealFactory(status=Appeal.Status.IN_PROGRESS)
+    original_category = appeal.category
+    new_department = DepartmentFactory()
+    worker = UserFactory()
+
+    transferred_appeal = transfer_appeal(
+        appeal=appeal,
+        transferred_by=worker,
+        department=new_department,
+    )
+
+    assert transferred_appeal.category == original_category
+    assert transferred_appeal.department == new_department
+
+    appeal.refresh_from_db()
+    assert appeal.category == original_category
+    assert appeal.department == new_department
+
+    event = AppealHistoryEvent.objects.get(appeal=appeal)
+    assert event.actor == worker
+    assert event.event_type == AppealHistoryEvent.EventType.DEPARTMENT_CHANGED
+    assert event.message == "Appeal department changed."
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+@pytest.mark.integration
+def test_transfer_appeal_changes_category_and_uses_its_department():
+    appeal = AppealFactory(status=Appeal.Status.IN_PROGRESS)
+    new_department = DepartmentFactory()
+    new_category = AppealCategoryFactory(department=new_department)
+    worker = UserFactory()
+
+    transferred_appeal = transfer_appeal(
+        appeal=appeal,
+        transferred_by=worker,
+        category=new_category,
+    )
+
+    assert transferred_appeal.category == new_category
+    assert transferred_appeal.department == new_department
+
+    appeal.refresh_from_db()
+    assert appeal.category == new_category
+    assert appeal.department == new_department
+
+    events = list(AppealHistoryEvent.objects.filter(appeal=appeal).order_by("pk"))
+    assert [event.actor for event in events] == [worker, worker]
+    assert [event.event_type for event in events] == [
+        AppealHistoryEvent.EventType.CATEGORY_CHANGED,
+        AppealHistoryEvent.EventType.DEPARTMENT_CHANGED,
+    ]
+    assert [event.message for event in events] == [
+        "Appeal category changed.",
+        "Appeal department changed.",
+    ]
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+@pytest.mark.integration
+def test_transfer_appeal_can_change_category_without_department_change():
+    appeal = AppealFactory(status=Appeal.Status.IN_PROGRESS)
+    new_category = AppealCategoryFactory(department=appeal.department)
+    worker = UserFactory()
+
+    transferred_appeal = transfer_appeal(
+        appeal=appeal,
+        transferred_by=worker,
+        category=new_category,
+    )
+
+    assert transferred_appeal.category == new_category
+    assert transferred_appeal.department == appeal.department
+
+    event = AppealHistoryEvent.objects.get(appeal=appeal)
+    assert event.actor == worker
+    assert event.event_type == AppealHistoryEvent.EventType.CATEGORY_CHANGED
+    assert event.message == "Appeal category changed."
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+@pytest.mark.integration
+def test_transfer_appeal_allows_new_appeals():
+    appeal = AppealFactory(status=Appeal.Status.NEW)
+    new_department = DepartmentFactory()
+
+    transferred_appeal = transfer_appeal(
+        appeal=appeal,
+        transferred_by=UserFactory(),
+        department=new_department,
+    )
+
+    assert transferred_appeal.department == new_department
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_transfer_appeal_rejects_empty_route_change():
+    appeal = AppealFactory(status=Appeal.Status.IN_PROGRESS)
+
+    with pytest.raises(ValidationError) as error:
+        transfer_appeal(
+            appeal=appeal,
+            transferred_by=UserFactory(),
+        )
+
+    assert "__all__" in error.value.message_dict
+    assert AppealHistoryEvent.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_transfer_appeal_rejects_closed_appeals():
+    appeal = AppealFactory(status=Appeal.Status.CLOSED)
+    original_department = appeal.department
+
+    with pytest.raises(ValidationError) as error:
+        transfer_appeal(
+            appeal=appeal,
+            transferred_by=UserFactory(),
+            department=DepartmentFactory(),
+        )
+
+    assert "status" in error.value.message_dict
+    appeal.refresh_from_db()
+    assert appeal.department == original_department
+    assert AppealHistoryEvent.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_transfer_appeal_rejects_inactive_category():
+    appeal = AppealFactory(status=Appeal.Status.IN_PROGRESS)
+    original_category = appeal.category
+    original_department = appeal.department
+
+    with pytest.raises(ValidationError) as error:
+        transfer_appeal(
+            appeal=appeal,
+            transferred_by=UserFactory(),
+            category=AppealCategoryFactory(is_active=False),
+        )
+
+    assert "category" in error.value.message_dict
+    appeal.refresh_from_db()
+    assert appeal.category == original_category
+    assert appeal.department == original_department
+    assert AppealHistoryEvent.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_transfer_appeal_rejects_inactive_department():
+    appeal = AppealFactory(status=Appeal.Status.IN_PROGRESS)
+    original_department = appeal.department
+
+    with pytest.raises(ValidationError) as error:
+        transfer_appeal(
+            appeal=appeal,
+            transferred_by=UserFactory(),
+            department=DepartmentFactory(is_active=False),
+        )
+
+    assert "department" in error.value.message_dict
+    appeal.refresh_from_db()
+    assert appeal.department == original_department
+    assert AppealHistoryEvent.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_transfer_appeal_rejects_unchanged_route():
+    appeal = AppealFactory(status=Appeal.Status.IN_PROGRESS)
+
+    with pytest.raises(ValidationError) as error:
+        transfer_appeal(
+            appeal=appeal,
+            transferred_by=UserFactory(),
+            department=appeal.department,
+        )
+
+    assert "__all__" in error.value.message_dict
     assert AppealHistoryEvent.objects.count() == 0

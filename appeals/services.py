@@ -198,6 +198,83 @@ def close_appeal(
     return locked_appeal
 
 
+def transfer_appeal(
+    *,
+    appeal: Appeal,
+    transferred_by: User,
+    category: AppealCategory | None = None,
+    department: Department | None = None,
+) -> Appeal:
+    """Вызывается, когда открытую заявку переносят в другую категорию или отдел.
+
+    Проверка прав доступа выполняется до вызова функции, а здесь уточняется
+    маршрут заявки и фиксируются изменения в истории.
+    """
+    if category is None and department is None:
+        raise ValidationError(
+            {
+                "__all__": _("Select category or department to transfer appeal."),
+            }
+        )
+
+    with transaction.atomic():
+        locked_appeal = Appeal.objects.select_for_update().get(pk=appeal.pk)
+        selected_category = category or locked_appeal.category
+        selected_department = department or selected_category.department
+
+        if locked_appeal.status == Appeal.Status.CLOSED:
+            raise ValidationError(
+                {
+                    "status": _("Closed appeals cannot be transferred."),
+                }
+            )
+
+        errors = {}
+        if category is not None and not category.is_active:
+            errors["category"] = _("Selected appeal category is inactive.")
+        if not selected_department.is_active:
+            errors["department"] = _("Selected department is inactive.")
+        if errors:
+            raise ValidationError(errors)
+
+        category_changed = locked_appeal.category_id != selected_category.pk
+        department_changed = locked_appeal.department_id != selected_department.pk
+        if not category_changed and not department_changed:
+            raise ValidationError(
+                {
+                    "__all__": _("Appeal route is unchanged."),
+                }
+            )
+
+        locked_appeal.category = selected_category
+        locked_appeal.department = selected_department
+        locked_appeal.full_clean()
+        update_fields = ["updated_at"]
+        if category_changed:
+            update_fields.append("category")
+        if department_changed:
+            update_fields.append("department")
+        locked_appeal.save(
+            update_fields=update_fields,
+        )
+        if category_changed:
+            _create_history_event(
+                appeal=locked_appeal,
+                actor=transferred_by,
+                event_type=AppealHistoryEvent.EventType.CATEGORY_CHANGED,
+                message=_("Appeal category changed."),
+            )
+        if department_changed:
+            _create_history_event(
+                appeal=locked_appeal,
+                actor=transferred_by,
+                event_type=AppealHistoryEvent.EventType.DEPARTMENT_CHANGED,
+                message=_("Appeal department changed."),
+            )
+
+    return locked_appeal
+
+
 def _create_history_event(
     *,
     appeal: Appeal,
