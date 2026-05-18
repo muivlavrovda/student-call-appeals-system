@@ -298,6 +298,12 @@ class Appeal(models.Model):
         verbose_name = _("Appeal")
         verbose_name_plural = _("Appeals")
         ordering = ["-created_at", "-pk"]
+        permissions = [
+            ("start_appeal_processing", _("Can start appeal processing")),
+            ("comment_appeal", _("Can comment appeal")),
+            ("close_appeal", _("Can close appeal")),
+            ("transfer_appeal", _("Can transfer appeal")),
+        ]
 
     def __str__(self) -> str:
         return f"#{self.pk} {self.summary}" if self.pk else self.summary

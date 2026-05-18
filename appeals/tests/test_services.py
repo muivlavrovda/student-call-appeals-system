@@ -6,10 +6,10 @@ from django.core.exceptions import ValidationError
 
 from appeals.models import Appeal, AppealComment, AppealHistoryEvent
 from appeals.services import (
-    accept_appeal,
     add_appeal_comment,
     close_appeal,
     create_appeal,
+    start_appeal_processing,
     transfer_appeal,
 )
 from appeals.tests.factories import AppealCategoryFactory, AppealFactory, DepartmentFactory
@@ -133,15 +133,15 @@ def test_create_appeal_runs_model_validation():
 @pytest.mark.django_db
 @pytest.mark.functional
 @pytest.mark.integration
-def test_accept_appeal_sets_worker_started_at_status_and_history():
+def test_start_appeal_processing_sets_worker_started_at_status_and_history():
     accepted_at = datetime(2026, 1, 10, 10, 30, tzinfo=UTC)
     appeal = AppealFactory()
     worker = UserFactory()
 
     with patch("appeals.services.timezone.now", return_value=accepted_at):
-        accepted_appeal = accept_appeal(
+        accepted_appeal = start_appeal_processing(
             appeal=appeal,
-            accepted_by=worker,
+            started_by=worker,
         )
 
     assert accepted_appeal.status == Appeal.Status.IN_PROGRESS
@@ -156,7 +156,7 @@ def test_accept_appeal_sets_worker_started_at_status_and_history():
     event = AppealHistoryEvent.objects.get(appeal=appeal)
     assert event.actor == worker
     assert event.event_type == AppealHistoryEvent.EventType.ACCEPTED
-    assert event.message == "Appeal accepted."
+    assert event.message == "Appeal processing started."
 
 
 @pytest.mark.django_db
@@ -168,13 +168,13 @@ def test_accept_appeal_sets_worker_started_at_status_and_history():
         Appeal.Status.CLOSED,
     ],
 )
-def test_accept_appeal_rejects_appeals_that_are_not_new(status):
+def test_start_appeal_processing_rejects_appeals_that_are_not_new(status):
     appeal = AppealFactory(status=status)
 
     with pytest.raises(ValidationError) as error:
-        accept_appeal(
+        start_appeal_processing(
             appeal=appeal,
-            accepted_by=UserFactory(),
+            started_by=UserFactory(),
         )
 
     assert "status" in error.value.message_dict

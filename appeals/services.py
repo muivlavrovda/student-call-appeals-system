@@ -67,12 +67,12 @@ def create_appeal(
     return appeal
 
 
-def accept_appeal(
+def start_appeal_processing(
     *,
     appeal: Appeal,
-    accepted_by: User,
+    started_by: User,
 ) -> Appeal:
-    """Вызывается, когда сотрудник принимает новую заявку в работу.
+    """Вызывается, когда сотрудник берет новую заявку в работу.
 
     Проверка прав доступа выполняется до вызова функции, а здесь фиксируется
     переход состояния и запись в истории заявки.
@@ -84,12 +84,12 @@ def accept_appeal(
         if locked_appeal.status != Appeal.Status.NEW:
             raise ValidationError(
                 {
-                    "status": _("Only new appeals can be accepted."),
+                    "status": _("Only new appeals can start processing."),
                 }
             )
 
         locked_appeal.status = Appeal.Status.IN_PROGRESS
-        locked_appeal.accepted_by = accepted_by
+        locked_appeal.accepted_by = started_by
         locked_appeal.accepted_at = accepted_at
         locked_appeal.full_clean()
         locked_appeal.save(
@@ -102,9 +102,9 @@ def accept_appeal(
         )
         _create_history_event(
             appeal=locked_appeal,
-            actor=accepted_by,
+            actor=started_by,
             event_type=AppealHistoryEvent.EventType.ACCEPTED,
-            message=_("Appeal accepted."),
+            message=_("Appeal processing started."),
         )
 
     return locked_appeal
