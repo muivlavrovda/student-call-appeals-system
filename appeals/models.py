@@ -9,6 +9,13 @@ from django.db import models
 from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
+from appeals.permissions import (
+    CLOSE_APPEAL_CODENAME,
+    COMMENT_APPEAL_CODENAME,
+    START_APPEAL_PROCESSING_CODENAME,
+    TRANSFER_APPEAL_CODENAME,
+)
+
 PHONE_RE = re.compile(r"^7\d{10}$")
 NormalizedFields = Mapping[str, Callable[[str], str]]
 
@@ -299,10 +306,10 @@ class Appeal(models.Model):
         verbose_name_plural = _("Appeals")
         ordering = ["-created_at", "-pk"]
         permissions = [
-            ("start_appeal_processing", _("Can start appeal processing")),
-            ("comment_appeal", _("Can comment appeal")),
-            ("close_appeal", _("Can close appeal")),
-            ("transfer_appeal", _("Can transfer appeal")),
+            (START_APPEAL_PROCESSING_CODENAME, _("Can start appeal processing")),
+            (COMMENT_APPEAL_CODENAME, _("Can comment appeal")),
+            (CLOSE_APPEAL_CODENAME, _("Can close appeal")),
+            (TRANSFER_APPEAL_CODENAME, _("Can transfer appeal")),
         ]
 
     def __str__(self) -> str:

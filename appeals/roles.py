@@ -2,24 +2,11 @@ from django.contrib.auth.models import Group, Permission
 from django.db import DEFAULT_DB_ALIAS
 from django.db.models.signals import post_migrate
 
+from appeals.permissions import OPERATOR_PERMISSIONS, RESPONSIBLE_PERMISSIONS
+
 ADMIN_GROUP = "Admin"
 OPERATOR_GROUP = "Operator"
 RESPONSIBLE_GROUP = "Responsible"
-
-OPERATOR_PERMISSIONS = [
-    "appeals.add_appeal",
-    "appeals.view_appeal",
-    "appeals.comment_appeal",
-    "appeals.close_appeal",
-]
-
-RESPONSIBLE_PERMISSIONS = [
-    "appeals.view_appeal",
-    "appeals.start_appeal_processing",
-    "appeals.comment_appeal",
-    "appeals.close_appeal",
-    "appeals.transfer_appeal",
-]
 
 
 def register_role_sync() -> None:
