@@ -1,0 +1,22 @@
+{% comment %}
+Хлебные крошки отображаются на каждой странице.
+Представление передает список `breadcrumbs`, где каждый элемент — это
+{"label": "...", "url": "..."}. Последний элемент считается текущей страницей.
+Ссылка на главную добавляется автоматически в начало цепочки.
+{% endcomment %}
+<nav aria-label="Хлебные крошки">
+  <ol class="breadcrumb">
+    {% if breadcrumbs %}
+      <li class="breadcrumb-item"><a href="{% url 'public:home' %}">Главная</a></li>
+      {% for crumb in breadcrumbs %}
+        {% if forloop.last %}
+          <li class="breadcrumb-item active" aria-current="page">{{ crumb.label }}</li>
+        {% else %}
+          <li class="breadcrumb-item"><a href="{{ crumb.url }}">{{ crumb.label }}</a></li>
+        {% endif %}
+      {% endfor %}
+    {% else %}
+      <li class="breadcrumb-item active" aria-current="page">Главная</li>
+    {% endif %}
+  </ol>
+</nav>

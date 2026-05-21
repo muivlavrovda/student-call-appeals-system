@@ -1,0 +1,28 @@
+{% load static %}
+<nav class="navbar navbar-expand-lg navbar-dark" aria-label="Основная навигация">
+  <div class="container">
+    <a class="navbar-brand" href="{% url 'public:home' %}">Журнал обращений</a>
+    <button
+      class="navbar-toggler"
+      type="button"
+      data-bs-toggle="collapse"
+      data-bs-target="#primary-nav"
+      aria-controls="primary-nav"
+      aria-expanded="false"
+      aria-label="Показать меню"
+    >
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="primary-nav">
+      <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+        <li class="nav-item">
+          <a
+            class="nav-link{% if request.resolver_match.view_name == 'public:home' %} active{% endif %}"
+            {% if request.resolver_match.view_name == 'public:home' %}aria-current="page"{% endif %}
+            href="{% url 'public:home' %}"
+          >Главная</a>
+        </li>
+      </ul>
+    </div>
+  </div>
+</nav>
