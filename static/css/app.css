@@ -1,0 +1,56 @@
+/*
+ * Локальные стили поверх Bootstrap.
+ * Хранятся в переменных, чтобы акценты и отступы задавались в одном месте.
+ */
+:root {
+  --app-accent: #1f5f8b;
+  --app-accent-dark: #174b6e;
+  --app-bg: #f6f8fa;
+  --app-footer-bg: #1b2733;
+  --app-footer-fg: #cdd6df;
+}
+
+body {
+  background-color: var(--app-bg);
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+/* Доступность: ссылка для перехода к основному содержимому. */
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: 0;
+  z-index: 1080;
+  padding: 0.5rem 1rem;
+  background: var(--app-accent);
+  color: #fff;
+}
+
+.skip-link:focus {
+  left: 0;
+}
+
+.navbar-brand {
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+.site-header .navbar {
+  background-color: var(--app-accent);
+}
+
+/* Основная рабочая область растягивается, прижимая подвал вниз. */
+.site-main {
+  flex: 1 0 auto;
+}
+
+.site-footer {
+  background-color: var(--app-footer-bg);
+  color: var(--app-footer-fg);
+}
+
+.site-footer a {
+  color: #fff;
+}
