@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+
+{% block title %}Категории обращений — Журнал учета телефонных обращений{% endblock %}
+
+{% block content %}
+  <section class="mb-4">
+    <h1 class="h2 mb-3">Категории обращений</h1>
+    <p class="lead mb-0">
+      Каждое обращение относится к определенной теме. Категория помогает
+      направить заявку в нужный отдел и рассчитать срок обработки. Ниже —
+      примеры тем, по которым чаще всего звонят обучающиеся.
+    </p>
+  </section>
+
+  <section class="mb-5">
+    <div class="row g-4">
+      <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h5 card-title">Поступление и приемная кампания</h2>
+            <p class="card-text mb-0">
+              Вопросы о подаче документов, сроках, направлениях подготовки
+              и условиях поступления.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h5 card-title">Учебный процесс</h2>
+            <p class="card-text mb-0">
+              Расписание, ведомости, пересдачи, перевод и восстановление,
+              академический отпуск.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h5 card-title">Оплата обучения</h2>
+            <p class="card-text mb-0">
+              Договоры, квитанции, сроки оплаты и вопросы по начислениям.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h5 card-title">Документы и справки</h2>
+            <p class="card-text mb-0">
+              Заказ справок, выписок и копий документов, подтверждение
+              обучения.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h5 card-title">Технические вопросы ЭИОС</h2>
+            <p class="card-text mb-0">
+              Доступ в личный кабинет, электронные курсы и сервисы
+              электронного университета.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h2 class="h5 card-title">Общежитие и быт</h2>
+            <p class="card-text mb-0">
+              Заселение, оплата проживания и бытовые вопросы студенческого
+              городка.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <p class="text-muted mb-0">
+      Точный перечень категорий и связанных с ними отделов настраивается
+      администратором системы и может меняться со временем.
+    </p>
+  </section>
+{% endblock %}

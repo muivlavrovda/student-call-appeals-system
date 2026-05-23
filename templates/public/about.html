@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+
+{% block title %}О сервисе — Журнал учета телефонных обращений{% endblock %}
+
+{% block content %}
+  <section class="mb-5">
+    <h1 class="h2 mb-3">О сервисе</h1>
+    <p class="lead">
+      Телефонные обращения обучающихся — это отдельный канал связи между
+      студентами и сотрудниками университета. Сам по себе звонок не оставляет
+      структурированной записи: после разговора может быть непонятно, кто
+      обращался, по какой теме и чем завершилось обращение.
+    </p>
+    <p>
+      Сервис решает эту задачу, переводя телефонный разговор в заявку, которая
+      сохраняется в системе, получает категорию, ответственный отдел, статус,
+      срок обработки и историю дальнейших действий. Результат работы —
+      единый журнал телефонных обращений с историей обработки каждого звонка
+      и общей статистикой.
+    </p>
+  </section>
+
+  <section class="mb-5">
+    <h2 class="h4 mb-3">Что входит в систему</h2>
+    <div class="row g-4">
+      <div class="col-12 col-lg-6">
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item">Регистрация заявки по итогам телефонного звонка</li>
+          <li class="list-group-item">Подсказка категории обращения по описанию звонка</li>
+          <li class="list-group-item">Назначение ответственного отдела и срока обработки</li>
+          <li class="list-group-item">Контроль статуса, истории и результата обращения</li>
+          <li class="list-group-item">Аналитика по обращениям и формирование отчетов</li>
+        </ul>
+      </div>
+      <div class="col-12 col-lg-6">
+        <h3 class="h6 text-muted">Система не занимается</h3>
+        <ul class="list-group list-group-flush">
+          <li class="list-group-item">Подключением к телефонии и приемом звонков</li>
+          <li class="list-group-item">Записью телефонных разговоров</li>
+          <li class="list-group-item">Распознаванием речи из аудио</li>
+        </ul>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2 class="h4 mb-3">Кто работает в системе</h2>
+    <div class="row g-4">
+      <div class="col-12 col-md-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h3 class="h6 card-title">Оператор</h3>
+            <p class="card-text mb-0">
+              Принимает звонки и создает по ним заявки, проверяет категорию
+              и ответственный отдел.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h3 class="h6 card-title">Ответственный сотрудник</h3>
+            <p class="card-text mb-0">
+              Обрабатывает заявки своего отдела: принимает в работу,
+              комментирует, фиксирует результат и закрывает обращение.
+            </p>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-md-4">
+        <div class="card h-100">
+          <div class="card-body">
+            <h3 class="h6 card-title">Администратор</h3>
+            <p class="card-text mb-0">
+              Управляет пользователями, отделами и категориями, видит все
+              заявки, аналитику и отчеты.
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}
