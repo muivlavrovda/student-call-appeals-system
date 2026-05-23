@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+
+{% block title %}Обратная связь — Журнал учета телефонных обращений{% endblock %}
+
+{% block content %}
+  <section class="mb-4">
+    <h1 class="h2 mb-3">Обратная связь</h1>
+    <p class="lead mb-0">
+      Есть вопрос или предложение по работе сервиса? Напишите нам — сообщение
+      получит администратор сайта. Эта форма не связана с обработкой телефонных
+      обращений обучающихся.
+    </p>
+  </section>
+
+  <div class="row">
+    <div class="col-12 col-lg-7">
+      <form method="post" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger" role="alert">
+            {{ form.non_field_errors }}
+          </div>
+        {% endif %}
+        {% include "_field.html" with field=form.name %}
+        {% include "_field.html" with field=form.email %}
+        {% include "_field.html" with field=form.message %}
+        <button type="submit" class="btn btn-primary">Отправить</button>
+      </form>
+    </div>
+  </div>
+{% endblock %}
