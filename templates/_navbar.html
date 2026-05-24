@@ -1,4 +1,3 @@
-{% load static %}
 <nav class="navbar navbar-expand-lg navbar-dark" aria-label="Основная навигация">
   <div class="container">
     <a class="navbar-brand" href="{% url 'public:home' %}">Журнал обращений</a>
@@ -36,6 +35,42 @@
              {% if view_name == 'public:feedback' %}aria-current="page"{% endif %}
              href="{% url 'public:feedback' %}">Обратная связь</a>
         </li>
+        {% if perms.appeals.view_appeal %}
+          <li class="nav-item">
+            <a class="nav-link{% if view_name == 'appeals:appeal_list' %} active{% endif %}"
+               {% if view_name == 'appeals:appeal_list' %}aria-current="page"{% endif %}
+               href="{% url 'appeals:appeal_list' %}">Мои обращения</a>
+          </li>
+        {% endif %}
+      </ul>
+
+      <ul class="navbar-nav ms-auto mb-2 mb-lg-0">
+        {% if user.is_authenticated %}
+          <li class="nav-item dropdown">
+            <a class="nav-link dropdown-toggle" href="#" id="user-menu" role="button"
+               data-bs-toggle="dropdown" aria-expanded="false">
+              {{ user.get_full_name|default:user.email }}
+            </a>
+            <ul class="dropdown-menu dropdown-menu-end" aria-labelledby="user-menu">
+              {% if user.is_staff %}
+                <li><a class="dropdown-item" href="{% url 'admin:index' %}">Панель администратора</a></li>
+                <li><hr class="dropdown-divider"></li>
+              {% endif %}
+              <li>
+                <form method="post" action="{% url 'logout' %}" class="px-3 py-1">
+                  {% csrf_token %}
+                  <button type="submit" class="btn btn-sm btn-outline-secondary w-100">Выйти</button>
+                </form>
+              </li>
+            </ul>
+          </li>
+        {% else %}
+          <li class="nav-item">
+            <a class="nav-link{% if view_name == 'login' %} active{% endif %}"
+               {% if view_name == 'login' %}aria-current="page"{% endif %}
+               href="{% url 'login' %}">Войти</a>
+          </li>
+        {% endif %}
       </ul>
       {% endwith %}
     </div>
