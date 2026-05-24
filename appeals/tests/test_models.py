@@ -169,3 +169,36 @@ def test_history_event_uses_declared_event_type_choices():
 
     assert event.event_type == AppealHistoryEvent.EventType.ACCEPTED
     assert str(event) == f"History event for appeal #{event.appeal_id}"
+
+
+@pytest.mark.django_db
+@pytest.mark.unit
+def test_appeal_is_overdue_when_open_and_past_due():
+    appeal = AppealFactory(
+        status=Appeal.Status.NEW,
+        due_at=timezone.now() - timedelta(hours=1),
+    )
+
+    assert appeal.is_overdue is True
+
+
+@pytest.mark.django_db
+@pytest.mark.unit
+def test_appeal_is_not_overdue_when_open_and_due_in_future():
+    appeal = AppealFactory(
+        status=Appeal.Status.IN_PROGRESS,
+        due_at=timezone.now() + timedelta(days=1),
+    )
+
+    assert appeal.is_overdue is False
+
+
+@pytest.mark.django_db
+@pytest.mark.unit
+def test_appeal_is_not_overdue_when_closed_even_if_past_due():
+    appeal = AppealFactory(
+        status=Appeal.Status.CLOSED,
+        due_at=timezone.now() - timedelta(days=2),
+    )
+
+    assert appeal.is_overdue is False

@@ -319,6 +319,11 @@ class Appeal(models.Model):
         normalize_model_fields(self, self.NORMALIZED_FIELDS)
         super().save(*args, **kwargs)
 
+    @property
+    def is_overdue(self) -> bool:
+        """Заявка просрочена, если не закрыта и срок обработки уже прошел."""
+        return self.status != self.Status.CLOSED and self.due_at < timezone.now()
+
 
 class AppealComment(models.Model):
     appeal = models.ForeignKey(

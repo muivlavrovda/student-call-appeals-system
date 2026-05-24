@@ -1,5 +1,4 @@
 from django.contrib import admin
-from django.utils import timezone
 from django.utils.translation import gettext_lazy as _
 
 from appeals.access import can_view_appeal, visible_appeals_for
@@ -287,7 +286,7 @@ class AppealAdmin(admin.ModelAdmin):
         description=_("Overdue"),
     )
     def is_overdue(self, obj):
-        return obj.status != Appeal.Status.CLOSED and obj.due_at < timezone.now()
+        return obj.is_overdue
 
 
 @admin.register(AppealComment)
