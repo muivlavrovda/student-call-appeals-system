@@ -128,6 +128,10 @@ AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
 ]
 
+LOGIN_URL = "login"
+LOGIN_REDIRECT_URL = "post_login"
+LOGOUT_REDIRECT_URL = "public:home"
+
 LOGGING = setup_logging(
     log_format=getenv("DJ_LOG_FORMAT", "text"),
     level="DEBUG" if DEBUG else "INFO",
