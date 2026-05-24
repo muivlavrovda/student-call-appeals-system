@@ -1,0 +1,16 @@
+{% comment %}
+Бейдж статуса заявки. Использование: {% include "appeals/_status_badge.html" with appeal=appeal %}
+Цвет подбирается по статусу; для просроченных открытых заявок добавляется отметка.
+{% endcomment %}
+{% if appeal.status == "new" %}
+  <span class="badge text-bg-secondary">{{ appeal.get_status_display }}</span>
+{% elif appeal.status == "in_progress" %}
+  <span class="badge text-bg-info">{{ appeal.get_status_display }}</span>
+{% elif appeal.status == "closed" %}
+  <span class="badge text-bg-success">{{ appeal.get_status_display }}</span>
+{% else %}
+  <span class="badge text-bg-light">{{ appeal.get_status_display }}</span>
+{% endif %}
+{% if appeal.is_overdue %}
+  <span class="badge text-bg-danger">Просрочено</span>
+{% endif %}

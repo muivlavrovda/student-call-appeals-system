@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Мои обращения — Журнал учета телефонных обращений{% endblock %}
+
+{% block content %}
+  <h1 class="h3 mb-4">Мои обращения</h1>
+
+  {% if appeals %}
+    <div class="table-responsive">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th scope="col">№</th>
+            <th scope="col">Тема</th>
+            <th scope="col">Категория</th>
+            <th scope="col">Отдел</th>
+            <th scope="col">Статус</th>
+            <th scope="col">Срок</th>
+            <th scope="col">Создано</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for appeal in appeals %}
+            <tr>
+              <td class="text-nowrap">#{{ appeal.pk }}</td>
+              <td>{{ appeal.summary }}</td>
+              <td>{{ appeal.category.name }}</td>
+              <td>{{ appeal.department.name }}</td>
+              <td>{% include "appeals/_status_badge.html" with appeal=appeal %}</td>
+              <td class="text-nowrap">{{ appeal.due_at|date:"d.m.Y" }}</td>
+              <td class="text-nowrap">{{ appeal.created_at|date:"d.m.Y" }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+
+    {% include "_pagination.html" %}
+  {% else %}
+    <div class="alert alert-info mb-0" role="alert">
+      Обращений пока нет.
+    </div>
+  {% endif %}
+{% endblock %}
