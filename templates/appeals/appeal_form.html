@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block title %}Новое обращение — Журнал учета телефонных обращений{% endblock %}
+
+{% block content %}
+  <h1 class="h3 mb-4">Новое обращение</h1>
+
+  <div class="row">
+    <div class="col-lg-8 col-xl-6">
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger" role="alert">
+            {% for error in form.non_field_errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% include "_field.html" with field=form.student_full_name %}
+        {% include "_field.html" with field=form.student_phone %}
+        {% include "_field.html" with field=form.summary %}
+        {% include "_field.html" with field=form.category %}
+        {% include "_field.html" with field=form.department %}
+        {% include "_field.html" with field=form.description %}
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Зарегистрировать</button>
+          <a href="{% url 'appeals:appeal_list' %}" class="btn btn-outline-secondary">Отмена</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

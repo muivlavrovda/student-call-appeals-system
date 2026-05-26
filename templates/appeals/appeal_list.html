@@ -3,7 +3,12 @@
 {% block title %}Мои обращения — Журнал учета телефонных обращений{% endblock %}
 
 {% block content %}
-  <h1 class="h3 mb-4">Мои обращения</h1>
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <h1 class="h3 mb-0">Мои обращения</h1>
+    {% if perms.appeals.add_appeal %}
+      <a href="{% url 'appeals:appeal_create' %}" class="btn btn-primary">Новое обращение</a>
+    {% endif %}
+  </div>
 
   {% if appeals %}
     <div class="table-responsive">
@@ -22,7 +27,9 @@
         <tbody>
           {% for appeal in appeals %}
             <tr>
-              <td class="text-nowrap">#{{ appeal.pk }}</td>
+              <td class="text-nowrap">
+                <a href="{% url 'appeals:appeal_detail' appeal.pk %}">#{{ appeal.pk }}</a>
+              </td>
               <td>{{ appeal.summary }}</td>
               <td>{{ appeal.category.name }}</td>
               <td>{{ appeal.department.name }}</td>

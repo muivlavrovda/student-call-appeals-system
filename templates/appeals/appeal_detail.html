@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block title %}Обращение №{{ appeal.pk }} — Журнал учета телефонных обращений{% endblock %}
+
+{% block content %}
+  <div class="d-flex flex-wrap align-items-center gap-3 mb-4">
+    <h1 class="h3 mb-0">Обращение №{{ appeal.pk }}</h1>
+    {% include "appeals/_status_badge.html" with appeal=appeal %}
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h2 class="h5 card-title">{{ appeal.summary }}</h2>
+      <dl class="row mb-0">
+        <dt class="col-sm-4 col-lg-3">Студент</dt>
+        <dd class="col-sm-8 col-lg-9">{{ appeal.student_full_name }}</dd>
+
+        <dt class="col-sm-4 col-lg-3">Телефон</dt>
+        <dd class="col-sm-8 col-lg-9">{{ appeal.student_phone }}</dd>
+
+        <dt class="col-sm-4 col-lg-3">Категория</dt>
+        <dd class="col-sm-8 col-lg-9">{{ appeal.category.name }}</dd>
+
+        <dt class="col-sm-4 col-lg-3">Отдел</dt>
+        <dd class="col-sm-8 col-lg-9">{{ appeal.department.name }}</dd>
+
+        <dt class="col-sm-4 col-lg-3">Срок обработки</dt>
+        <dd class="col-sm-8 col-lg-9">{{ appeal.due_at|date:"d.m.Y H:i" }}</dd>
+
+        <dt class="col-sm-4 col-lg-3">Создано</dt>
+        <dd class="col-sm-8 col-lg-9">{{ appeal.created_at|date:"d.m.Y H:i" }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <h2 class="h6 card-title">Описание</h2>
+      <p class="mb-0" style="white-space: pre-line;">{{ appeal.description }}</p>
+    </div>
+  </div>
+
+  <a href="{% url 'appeals:appeal_list' %}" class="btn btn-outline-secondary">К списку обращений</a>
+{% endblock %}
