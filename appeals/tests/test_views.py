@@ -5,11 +5,13 @@ from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils import timezone
 
-from appeals.models import Appeal, AppealHistoryEvent
+from appeals.models import Appeal, AppealComment, AppealHistoryEvent
 from appeals.roles import ADMIN_GROUP, OPERATOR_GROUP, RESPONSIBLE_GROUP, sync_access_groups
 from appeals.tests.factories import (
     AppealCategoryFactory,
+    AppealCommentFactory,
     AppealFactory,
+    AppealHistoryEventFactory,
     DepartmentFactory,
 )
 from users.tests.factories import UserFactory
@@ -17,6 +19,7 @@ from users.tests.factories import UserFactory
 LIST_URL_NAME = "appeals:appeal_list"
 CREATE_URL_NAME = "appeals:appeal_create"
 DETAIL_URL_NAME = "appeals:appeal_detail"
+COMMENT_URL_NAME = "appeals:appeal_comment_create"
 LOGIN_URL = "/accounts/login/"
 
 
@@ -396,3 +399,215 @@ def test_appeal_detail_denies_deactivated_user_with_live_session(client):
     assert response.status_code == 302
     assert LOGIN_URL in response["Location"]
     assert "секретная заявка" not in response.content.decode()
+
+
+# --- appeal detail: timeline & comments rendering ----------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_detail_shows_history_timeline(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator)
+    AppealHistoryEventFactory(
+        appeal=appeal,
+        actor=operator,
+        event_type=AppealHistoryEvent.EventType.CREATED,
+    )
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk}))
+    content = response.content.decode()
+
+    assert list(response.context["history_events"]) == list(appeal.history_events.all())
+    assert "История" in content
+    assert "timeline" in content
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_detail_lists_comments(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator)
+    AppealCommentFactory(appeal=appeal, author=operator, text="комментарий оператора")
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert "комментарий оператора" in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_detail_shows_comment_form_for_commenter(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator)
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.context["can_comment"] is True
+    assert "Добавить комментарий" in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_detail_lets_responsible_comment_department_appeal(client):
+    responsible = _user_in_group(RESPONSIBLE_GROUP)
+    department = DepartmentFactory()
+    department.members.add(responsible)
+    appeal = AppealFactory(department=department)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.get(reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.context["can_comment"] is True
+    assert "Добавить комментарий" in response.content.decode()
+
+
+# --- appeal comment create ---------------------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+def test_comment_create_redirects_anonymous_to_login(client):
+    appeal = AppealFactory()
+    response = client.post(reverse(COMMENT_URL_NAME, kwargs={"pk": appeal.pk}), data={"text": "x"})
+
+    assert response.status_code == 302
+    assert LOGIN_URL in response["Location"]
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+def test_comment_create_forbidden_without_comment_permission(client):
+    appeal = AppealFactory()
+    user = UserFactory(password="secret")
+    client.login(email=user.email, password="secret")
+
+    response = client.post(
+        reverse(COMMENT_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"text": "Комментарий"},
+    )
+
+    assert response.status_code == 403
+    assert AppealComment.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+@pytest.mark.integration
+def test_comment_create_returns_404_for_out_of_scope_appeal(client):
+    # Operator has the comment permission globally but cannot see others'
+    # appeals, so commenting one is a 404 (no existence leak), not a 403.
+    operator = _user_in_group(OPERATOR_GROUP)
+    other = AppealFactory()
+    client.login(email=operator.email, password="secret")
+
+    response = client.post(
+        reverse(COMMENT_URL_NAME, kwargs={"pk": other.pk}),
+        data={"text": "Комментарий"},
+    )
+
+    assert response.status_code == 404
+    assert AppealComment.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_comment_create_rejects_get(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator)
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(COMMENT_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.status_code == 405
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_comment_create_adds_comment_and_redirects(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator)
+    client.login(email=operator.email, password="secret")
+
+    response = client.post(
+        reverse(COMMENT_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"text": "Уточнил детали обращения"},
+    )
+
+    comment = AppealComment.objects.get()
+    assert comment.appeal == appeal
+    assert comment.author == operator
+    assert comment.text == "Уточнил детали обращения"
+    assert response.status_code == 302
+    detail_url = reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk})
+    assert response["Location"] == f"{detail_url}#comments"
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_comment_create_writes_history_event(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator)
+    client.login(email=operator.email, password="secret")
+
+    client.post(
+        reverse(COMMENT_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"text": "Комментарий"},
+    )
+
+    event = appeal.history_events.get()
+    assert event.event_type == AppealHistoryEvent.EventType.COMMENT_ADDED
+    assert event.actor == operator
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_comment_create_shows_success_message(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator)
+    client.login(email=operator.email, password="secret")
+
+    response = client.post(
+        reverse(COMMENT_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"text": "Комментарий"},
+        follow=True,
+    )
+
+    assert "Комментарий добавлен." in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_comment_create_rejects_empty_text(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator)
+    client.login(email=operator.email, password="secret")
+
+    response = client.post(
+        reverse(COMMENT_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"text": "   "},
+        follow=True,
+    )
+
+    assert AppealComment.objects.count() == 0
+    assert "Введите текст комментария." in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_comment_create_rejects_closed_appeal(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator, status=Appeal.Status.CLOSED)
+    client.login(email=operator.email, password="secret")
+
+    response = client.post(
+        reverse(COMMENT_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"text": "Комментарий к закрытой"},
+        follow=True,
+    )
+
+    assert AppealComment.objects.count() == 0
+    assert "Нельзя комментировать закрытое обращение." in response.content.decode()

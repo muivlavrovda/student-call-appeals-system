@@ -40,5 +40,24 @@
     </div>
   </div>
 
+  <div class="row g-4 mb-4">
+    <div class="col-lg-5">
+      <section class="card h-100" aria-labelledby="history-heading">
+        <div class="card-body">
+          <h2 id="history-heading" class="h6 card-title mb-3">История</h2>
+          {% include "appeals/_timeline.html" with events=history_events %}
+        </div>
+      </section>
+    </div>
+    <div class="col-lg-7">
+      <section class="card h-100" id="comments" aria-labelledby="comments-heading">
+        <div class="card-body">
+          <h2 id="comments-heading" class="h6 card-title mb-3">Комментарии</h2>
+          {% include "appeals/_comments.html" with appeal=appeal comments=comments can_comment=can_comment comment_form=comment_form %}
+        </div>
+      </section>
+    </div>
+  </div>
+
   <a href="{% url 'appeals:appeal_list' %}" class="btn btn-outline-secondary">К списку обращений</a>
 {% endblock %}

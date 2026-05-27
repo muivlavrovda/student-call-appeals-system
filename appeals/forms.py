@@ -85,3 +85,22 @@ class AppealCreateForm(BootstrapFormMixin, forms.Form):
 
     def clean_student_phone(self) -> str:
         return normalize_phone(self.cleaned_data["student_phone"])
+
+
+class AppealCommentForm(BootstrapFormMixin, forms.Form):
+    """Форма добавления комментария к обращению.
+
+    Сохранение выполняет сервис ``add_appeal_comment``, который пишет
+    комментарий и событие в историю и запрещает комментировать закрытые заявки.
+    """
+
+    text = forms.CharField(
+        label="Комментарий",
+        widget=forms.Textarea(
+            attrs={
+                "rows": 3,
+                "placeholder": "Добавьте комментарий по обращению.",
+            },
+        ),
+        error_messages={"required": "Введите текст комментария."},
+    )

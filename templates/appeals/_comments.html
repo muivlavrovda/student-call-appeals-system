@@ -1,0 +1,31 @@
+{% comment %}
+Список комментариев обращения и форма добавления нового.
+Использование:
+  {% include "appeals/_comments.html" with appeal=appeal comments=comments can_comment=can_comment comment_form=comment_form %}
+Форму показываем только тем, кто может комментировать это обращение.
+{% endcomment %}
+{% if comments %}
+  <ul class="comment-list list-unstyled mb-4">
+    {% for comment in comments %}
+      <li class="comment mb-3">
+        <div class="comment-head">
+          <span class="comment-author">{{ comment.author.get_full_name|default:comment.author.email }}</span>
+          <time class="comment-date text-secondary" datetime="{{ comment.created_at|date:'c' }}">
+            {{ comment.created_at|date:"d.m.Y H:i" }}
+          </time>
+        </div>
+        <p class="comment-text mb-0">{{ comment.text|linebreaksbr }}</p>
+      </li>
+    {% endfor %}
+  </ul>
+{% else %}
+  <p class="text-secondary">Комментариев пока нет.</p>
+{% endif %}
+
+{% if can_comment %}
+  <form method="post" action="{% url 'appeals:appeal_comment_create' appeal.pk %}" novalidate>
+    {% csrf_token %}
+    {% include "_field.html" with field=comment_form.text %}
+    <button type="submit" class="btn btn-primary">Добавить комментарий</button>
+  </form>
+{% endif %}

@@ -54,3 +54,83 @@ body {
 .site-footer a {
   color: #fff;
 }
+
+/* Лента истории обращения: вертикальная линия с точками по типам событий. */
+.timeline {
+  position: relative;
+  padding-left: 1.5rem;
+}
+
+.timeline::before {
+  content: "";
+  position: absolute;
+  top: 0.35rem;
+  bottom: 0.35rem;
+  left: 0.3rem;
+  width: 2px;
+  background-color: #dee2e6;
+}
+
+.timeline-item {
+  position: relative;
+  padding-bottom: 1.1rem;
+}
+
+.timeline-item:last-child {
+  padding-bottom: 0;
+}
+
+.timeline-marker {
+  position: absolute;
+  left: -1.5rem;
+  top: 0.3rem;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  background-color: var(--app-accent);
+  box-shadow: 0 0 0 3px var(--app-bg);
+}
+
+/* Ключевые события выделяются цветом точки. */
+.timeline-item--created .timeline-marker {
+  background-color: #6c757d;
+}
+
+.timeline-item--accepted .timeline-marker {
+  background-color: #0dcaf0;
+}
+
+.timeline-item--closed .timeline-marker {
+  background-color: #198754;
+}
+
+.timeline-title {
+  font-weight: 600;
+}
+
+.timeline-meta {
+  font-size: 0.875rem;
+  color: #6c757d;
+}
+
+/* Комментарии: лёгкое разделение карточек обсуждения. */
+.comment {
+  border-left: 3px solid #e9ecef;
+  padding-left: 0.75rem;
+}
+
+.comment-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: baseline;
+  margin-bottom: 0.15rem;
+}
+
+.comment-author {
+  font-weight: 600;
+}
+
+.comment-date {
+  font-size: 0.875rem;
+}

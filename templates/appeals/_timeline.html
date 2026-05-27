@@ -1,0 +1,19 @@
+{% comment %}
+История событий обращения в виде вертикальной ленты.
+Использование: {% include "appeals/_timeline.html" with events=history_events %}
+Метки типов событий приходят из модели; цвет точки подбирается по типу.
+{% endcomment %}
+<ol class="timeline list-unstyled mb-0">
+  {% for event in events %}
+    <li class="timeline-item timeline-item--{{ event.event_type }}">
+      <div class="timeline-marker" aria-hidden="true"></div>
+      <div class="timeline-content">
+        <p class="timeline-title mb-1">{{ event.get_event_type_display }}</p>
+        <p class="timeline-meta mb-0">
+          {% if event.actor %}{{ event.actor.get_full_name|default:event.actor.email }} · {% endif %}
+          <time datetime="{{ event.created_at|date:'c' }}">{{ event.created_at|date:"d.m.Y H:i" }}</time>
+        </p>
+      </div>
+    </li>
+  {% endfor %}
+</ol>

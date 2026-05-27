@@ -1,13 +1,18 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import ValidationError
+from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.views.generic import DetailView, FormView, ListView
+from django.views.generic import DetailView, FormView, ListView, View
 
-from appeals.access import visible_appeals_for
-from appeals.forms import AppealCreateForm
-from appeals.permissions import ADD_APPEAL_PERMISSION, VIEW_APPEAL_PERMISSION
-from appeals.services import create_appeal
+from appeals.access import can_comment_appeal, visible_appeals_for
+from appeals.forms import AppealCommentForm, AppealCreateForm
+from appeals.permissions import (
+    ADD_APPEAL_PERMISSION,
+    COMMENT_APPEAL_PERMISSION,
+    VIEW_APPEAL_PERMISSION,
+)
+from appeals.services import add_appeal_comment, create_appeal
 
 
 class AppealListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
@@ -96,8 +101,51 @@ class AppealDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        appeal = self.object
         context["breadcrumbs"] = [
             {"label": "Мои обращения", "url": reverse("appeals:appeal_list")},
-            {"label": f"Обращение №{self.object.pk}"},
+            {"label": f"Обращение №{appeal.pk}"},
         ]
+        context["history_events"] = appeal.history_events.select_related("actor")
+        context["comments"] = appeal.comments.select_related("author")
+        context["can_comment"] = can_comment_appeal(self.request.user, appeal)
+        context["comment_form"] = AppealCommentForm()
         return context
+
+
+class AppealCommentCreateView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """Добавление комментария к обращению из его карточки.
+
+    Сохранение делегируется сервису ``add_appeal_comment``; результат
+    показывается сообщением, после чего пользователь возвращается в карточку.
+    """
+
+    permission_required = COMMENT_APPEAL_PERMISSION
+
+    def post(self, request, pk):
+        # Scope the lookup to visible appeals so an out-of-scope id 404s and
+        # does not leak existence, matching the detail view; the permission
+        # mixin already rejected users who cannot comment at all.
+        appeal = get_object_or_404(visible_appeals_for(request.user), pk=pk)
+
+        form = AppealCommentForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, "Введите текст комментария.")
+            return self._redirect_to_appeal(appeal)
+
+        try:
+            add_appeal_comment(
+                appeal=appeal,
+                author=request.user,
+                text=form.cleaned_data["text"],
+            )
+        except ValidationError:
+            messages.error(request, "Нельзя комментировать закрытое обращение.")
+            return self._redirect_to_appeal(appeal)
+
+        messages.success(request, "Комментарий добавлен.")
+        return self._redirect_to_appeal(appeal)
+
+    def _redirect_to_appeal(self, appeal):
+        url = reverse("appeals:appeal_detail", kwargs={"pk": appeal.pk})
+        return redirect(f"{url}#comments")
