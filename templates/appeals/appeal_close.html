@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+
+{% block title %}Закрытие обращения №{{ appeal.pk }} — Журнал учета телефонных обращений{% endblock %}
+
+{% block content %}
+  <h1 class="h3 mb-4">Закрытие обращения №{{ appeal.pk }}</h1>
+
+  <div class="row">
+    <div class="col-lg-8 col-xl-6">
+      <p class="text-secondary">{{ appeal.summary }}</p>
+
+      <form method="post" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+          <div class="alert alert-danger" role="alert">
+            {% for error in form.non_field_errors %}
+              <div>{{ error }}</div>
+            {% endfor %}
+          </div>
+        {% endif %}
+
+        {% include "_field.html" with field=form.result %}
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-success">Закрыть обращение</button>
+          <a href="{% url 'appeals:appeal_detail' appeal.pk %}" class="btn btn-outline-secondary">Отмена</a>
+        </div>
+      </form>
+    </div>
+  </div>
+{% endblock %}

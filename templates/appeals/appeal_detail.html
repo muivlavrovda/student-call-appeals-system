@@ -8,6 +8,20 @@
     {% include "appeals/_status_badge.html" with appeal=appeal %}
   </div>
 
+  {% if can_start_processing or can_close %}
+    <div class="d-flex flex-wrap gap-2 mb-4">
+      {% if can_start_processing %}
+        <form method="post" action="{% url 'appeals:appeal_start_processing' appeal.pk %}">
+          {% csrf_token %}
+          <button type="submit" class="btn btn-primary">Взять в работу</button>
+        </form>
+      {% endif %}
+      {% if can_close %}
+        <a href="{% url 'appeals:appeal_close' appeal.pk %}" class="btn btn-success">Закрыть обращение</a>
+      {% endif %}
+    </div>
+  {% endif %}
+
   <div class="card mb-4">
     <div class="card-body">
       <h2 class="h5 card-title">{{ appeal.summary }}</h2>
@@ -29,9 +43,23 @@
 
         <dt class="col-sm-4 col-lg-3">Создано</dt>
         <dd class="col-sm-8 col-lg-9">{{ appeal.created_at|date:"d.m.Y H:i" }}</dd>
+
+        {% if appeal.status == "closed" %}
+          <dt class="col-sm-4 col-lg-3">Закрыто</dt>
+          <dd class="col-sm-8 col-lg-9">{{ appeal.closed_at|date:"d.m.Y H:i" }}</dd>
+        {% endif %}
       </dl>
     </div>
   </div>
+
+  {% if appeal.result %}
+    <div class="card mb-4">
+      <div class="card-body">
+        <h2 class="h6 card-title">Результат обработки</h2>
+        <p class="mb-0" style="white-space: pre-line;">{{ appeal.result }}</p>
+      </div>
+    </div>
+  {% endif %}
 
   <div class="card mb-4">
     <div class="card-body">

@@ -50,7 +50,7 @@ def test_logout_requires_post(client):
     user = UserFactory(password="secret")
     client.login(email=user.email, password="secret")
 
-    # GET must not log the user out (Django 5+ behavior).
+    # GET не должен разлогинивать пользователя (поведение Django 5+).
     get_response = client.get(reverse(LOGOUT_URL_NAME))
     assert get_response.status_code == 405
 

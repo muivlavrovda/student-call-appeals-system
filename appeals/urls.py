@@ -1,10 +1,12 @@
 from django.urls import path
 
 from appeals.views import (
+    AppealCloseView,
     AppealCommentCreateView,
     AppealCreateView,
     AppealDetailView,
     AppealListView,
+    AppealStartProcessingView,
 )
 
 app_name = "appeals"
@@ -17,5 +19,15 @@ urlpatterns = [
         "appeals/<int:pk>/comments/",
         AppealCommentCreateView.as_view(),
         name="appeal_comment_create",
+    ),
+    path(
+        "appeals/<int:pk>/start/",
+        AppealStartProcessingView.as_view(),
+        name="appeal_start_processing",
+    ),
+    path(
+        "appeals/<int:pk>/close/",
+        AppealCloseView.as_view(),
+        name="appeal_close",
     ),
 ]

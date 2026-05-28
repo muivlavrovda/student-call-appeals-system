@@ -104,3 +104,22 @@ class AppealCommentForm(BootstrapFormMixin, forms.Form):
         ),
         error_messages={"required": "Введите текст комментария."},
     )
+
+
+class AppealCloseForm(BootstrapFormMixin, forms.Form):
+    """Форма закрытия обращения с указанием результата обработки.
+
+    Сохранение выполняет сервис ``close_appeal``: он нормализует результат,
+    переводит заявку в закрытый статус и пишет событие в историю.
+    """
+
+    result = forms.CharField(
+        label="Результат обработки",
+        widget=forms.Textarea(
+            attrs={
+                "rows": 4,
+                "placeholder": "Опишите, как обращение было обработано.",
+            },
+        ),
+        error_messages={"required": "Опишите результат обработки."},
+    )

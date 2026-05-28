@@ -20,7 +20,16 @@ LIST_URL_NAME = "appeals:appeal_list"
 CREATE_URL_NAME = "appeals:appeal_create"
 DETAIL_URL_NAME = "appeals:appeal_detail"
 COMMENT_URL_NAME = "appeals:appeal_comment_create"
+START_URL_NAME = "appeals:appeal_start_processing"
+CLOSE_URL_NAME = "appeals:appeal_close"
 LOGIN_URL = "/accounts/login/"
+
+
+def _responsible_with_department(*, password: str = "secret"):
+    responsible = _user_in_group(RESPONSIBLE_GROUP, password=password)
+    department = DepartmentFactory()
+    department.members.add(responsible)
+    return responsible, department
 
 
 def _valid_appeal_payload(category):
@@ -41,7 +50,7 @@ def _user_in_group(*group_names: str, password: str = "secret"):
     return user
 
 
-# --- appeal list: access control ---------------------------------------------
+# --- список обращений: контроль доступа --------------------------------------
 
 
 @pytest.mark.django_db
@@ -113,7 +122,7 @@ def test_appeal_list_shows_all_appeals_to_admin(client):
     assert set(response.context["appeals"]) == set(appeals)
 
 
-# --- appeal list: rendering ---------------------------------------------------
+# --- список обращений: отрисовка ---------------------------------------------
 
 
 @pytest.mark.django_db
@@ -157,7 +166,7 @@ def test_appeal_list_is_paginated(client):
     assert len(response.context["appeals"]) == 20
 
 
-# --- appeal create: access control -------------------------------------------
+# --- создание обращения: контроль доступа ------------------------------------
 
 
 @pytest.mark.django_db
@@ -172,7 +181,7 @@ def test_appeal_create_redirects_anonymous_to_login(client):
 @pytest.mark.django_db
 @pytest.mark.security
 def test_appeal_create_forbidden_without_add_permission(client):
-    # Responsible employees can view appeals but not register new ones.
+    # Ответственный сотрудник видит обращения, но не регистрирует новые.
     responsible = _user_in_group(RESPONSIBLE_GROUP)
     client.login(email=responsible.email, password="secret")
 
@@ -181,7 +190,7 @@ def test_appeal_create_forbidden_without_add_permission(client):
     assert response.status_code == 403
 
 
-# --- appeal create: rendering & submission -----------------------------------
+# --- создание обращения: отрисовка и отправка --------------------------------
 
 
 @pytest.mark.django_db
@@ -295,7 +304,7 @@ def test_appeal_create_rejects_missing_fields(client):
 @pytest.mark.django_db
 @pytest.mark.security
 def test_appeal_create_rejects_inactive_category_choice(client):
-    # A crafted POST referencing an inactive category is not an allowed choice.
+    # Подделанный POST с неактивной категорией не является допустимым выбором.
     operator = _user_in_group(OPERATOR_GROUP)
     inactive = AppealCategoryFactory(is_active=False)
     client.login(email=operator.email, password="secret")
@@ -313,8 +322,8 @@ def test_appeal_create_rejects_inactive_category_choice(client):
 @pytest.mark.django_db
 @pytest.mark.functional
 def test_appeal_create_surfaces_service_validation_error(client):
-    # The form accepts an active category, but its department was deactivated
-    # after render — the service rejects it and the error reaches the form.
+    # Форма принимает активную категорию, но её отдел отключили после отрисовки —
+    # сервис отклоняет заявку, и ошибка доходит до формы.
     operator = _user_in_group(OPERATOR_GROUP)
     department = DepartmentFactory(is_active=False)
     category = AppealCategoryFactory(department=department)
@@ -330,7 +339,7 @@ def test_appeal_create_surfaces_service_validation_error(client):
     assert "inactive" in response.content.decode().lower()
 
 
-# --- appeal detail ------------------------------------------------------------
+# --- карточка обращения ------------------------------------------------------
 
 
 @pytest.mark.django_db
@@ -385,9 +394,9 @@ def test_appeal_detail_forbidden_without_view_permission(client):
 @pytest.mark.django_db
 @pytest.mark.security
 def test_appeal_detail_denies_deactivated_user_with_live_session(client):
-    # Deactivating a user invalidates their live session: the auth backend stops
-    # resolving the session to a user, so the next request is anonymous and is
-    # bounced to login instead of seeing the appeal.
+    # Отключение пользователя обрывает его активную сессию: бэкенд аутентификации
+    # перестаёт сопоставлять сессию с пользователем, поэтому следующий запрос
+    # становится анонимным и уходит на вход, а не показывает обращение.
     operator = _user_in_group(OPERATOR_GROUP)
     appeal = AppealFactory(created_by=operator, summary="секретная заявка")
     client.login(email=operator.email, password="secret")
@@ -401,7 +410,7 @@ def test_appeal_detail_denies_deactivated_user_with_live_session(client):
     assert "секретная заявка" not in response.content.decode()
 
 
-# --- appeal detail: timeline & comments rendering ----------------------------
+# --- карточка обращения: отрисовка истории и комментариев ---------------------
 
 
 @pytest.mark.django_db
@@ -465,7 +474,7 @@ def test_appeal_detail_lets_responsible_comment_department_appeal(client):
     assert "Добавить комментарий" in response.content.decode()
 
 
-# --- appeal comment create ---------------------------------------------------
+# --- добавление комментария --------------------------------------------------
 
 
 @pytest.mark.django_db
@@ -498,8 +507,8 @@ def test_comment_create_forbidden_without_comment_permission(client):
 @pytest.mark.security
 @pytest.mark.integration
 def test_comment_create_returns_404_for_out_of_scope_appeal(client):
-    # Operator has the comment permission globally but cannot see others'
-    # appeals, so commenting one is a 404 (no existence leak), not a 403.
+    # У оператора есть право комментировать в целом, но чужие обращения он не
+    # видит, поэтому комментирование такого — это 404 (без раскрытия), а не 403.
     operator = _user_in_group(OPERATOR_GROUP)
     other = AppealFactory()
     client.login(email=operator.email, password="secret")
@@ -611,3 +620,320 @@ def test_comment_create_rejects_closed_appeal(client):
 
     assert AppealComment.objects.count() == 0
     assert "Нельзя комментировать закрытое обращение." in response.content.decode()
+
+
+# --- взятие обращения в работу -----------------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+def test_start_processing_redirects_anonymous_to_login(client):
+    appeal = AppealFactory()
+    response = client.post(reverse(START_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.status_code == 302
+    assert LOGIN_URL in response["Location"]
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+def test_start_processing_forbidden_without_permission(client):
+    # Оператор видит свои обращения, но не может брать их в работу.
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator, status=Appeal.Status.NEW)
+    client.login(email=operator.email, password="secret")
+
+    response = client.post(reverse(START_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.status_code == 403
+    appeal.refresh_from_db()
+    assert appeal.status == Appeal.Status.NEW
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+@pytest.mark.integration
+def test_start_processing_returns_404_for_out_of_scope_appeal(client):
+    responsible, _ = _responsible_with_department()
+    other = AppealFactory(status=Appeal.Status.NEW)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.post(reverse(START_URL_NAME, kwargs={"pk": other.pk}))
+
+    assert response.status_code == 404
+    other.refresh_from_db()
+    assert other.status == Appeal.Status.NEW
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+@pytest.mark.integration
+def test_start_processing_forbidden_for_visible_appeal_outside_department(client):
+    # Пользователь сразу в ролях оператора и ответственного видит созданное им
+    # обращение, даже если оно в отделе, где он не состоит. Право брать в работу
+    # у него есть, поэтому запрос проходит миксин и выборку по доступу, но
+    # проверка по отделу для конкретного объекта всё равно запрещает действие.
+    user = _user_in_group(OPERATOR_GROUP, RESPONSIBLE_GROUP)
+    other_department = DepartmentFactory()
+    appeal = AppealFactory(
+        created_by=user,
+        department=other_department,
+        status=Appeal.Status.NEW,
+    )
+    client.login(email=user.email, password="secret")
+
+    response = client.post(reverse(START_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.status_code == 403
+    appeal.refresh_from_db()
+    assert appeal.status == Appeal.Status.NEW
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_start_processing_rejects_get(client):
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department, status=Appeal.Status.NEW)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.get(reverse(START_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.status_code == 405
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_start_processing_moves_appeal_into_work(client):
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department, status=Appeal.Status.NEW)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.post(reverse(START_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    appeal.refresh_from_db()
+    assert appeal.status == Appeal.Status.IN_PROGRESS
+    assert appeal.accepted_by == responsible
+    assert response.status_code == 302
+    assert response["Location"] == reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk})
+
+    event = appeal.history_events.latest("created_at")
+    assert event.event_type == AppealHistoryEvent.EventType.ACCEPTED
+    assert event.actor == responsible
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_start_processing_shows_success_message(client):
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department, status=Appeal.Status.NEW)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.post(
+        reverse(START_URL_NAME, kwargs={"pk": appeal.pk}),
+        follow=True,
+    )
+
+    assert "Обращение взято в работу." in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_start_processing_rejects_appeal_already_in_work(client):
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department, status=Appeal.Status.IN_PROGRESS)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.post(
+        reverse(START_URL_NAME, kwargs={"pk": appeal.pk}),
+        follow=True,
+    )
+
+    assert "Обращение уже взято в работу." in response.content.decode()
+
+
+# --- закрытие обращения ------------------------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+def test_close_redirects_anonymous_to_login(client):
+    appeal = AppealFactory()
+    response = client.get(reverse(CLOSE_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.status_code == 302
+    assert LOGIN_URL in response["Location"]
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+def test_close_forbidden_without_permission(client):
+    # Ответственный без этого обращения в своём отделе не может его закрыть, а
+    # пользователя совсем без права закрытия отклоняет миксин.
+    user = UserFactory(password="secret")
+    appeal = AppealFactory()
+    client.login(email=user.email, password="secret")
+
+    response = client.get(reverse(CLOSE_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+@pytest.mark.integration
+def test_close_returns_404_for_out_of_scope_appeal(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    other = AppealFactory()
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(CLOSE_URL_NAME, kwargs={"pk": other.pk}))
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_close_renders_form_for_owner(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator, status=Appeal.Status.IN_PROGRESS)
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(CLOSE_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.status_code == 200
+    assert "Результат обработки" in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_close_sets_result_and_status(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator, status=Appeal.Status.IN_PROGRESS)
+    client.login(email=operator.email, password="secret")
+
+    response = client.post(
+        reverse(CLOSE_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"result": "Справка выдана студенту."},
+    )
+
+    appeal.refresh_from_db()
+    assert appeal.status == Appeal.Status.CLOSED
+    assert appeal.result == "Справка выдана студенту."
+    assert response.status_code == 302
+    assert response["Location"] == reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk})
+
+    event = appeal.history_events.latest("created_at")
+    assert event.event_type == AppealHistoryEvent.EventType.CLOSED
+    assert event.actor == operator
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_close_shows_success_message(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator, status=Appeal.Status.IN_PROGRESS)
+    client.login(email=operator.email, password="secret")
+
+    response = client.post(
+        reverse(CLOSE_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"result": "Готово."},
+        follow=True,
+    )
+
+    assert "Обращение закрыто." in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_close_rejects_empty_result(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator, status=Appeal.Status.IN_PROGRESS)
+    client.login(email=operator.email, password="secret")
+
+    response = client.post(
+        reverse(CLOSE_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"result": "   "},
+    )
+
+    assert response.status_code == 200
+    appeal.refresh_from_db()
+    assert appeal.status == Appeal.Status.IN_PROGRESS
+    assert "Опишите результат обработки." in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_close_already_closed_appeal_surfaces_service_error(client):
+    # После закрытия кнопка закрытия скрыта, но прямой POST всё равно
+    # отклоняется сервисом и показывается как ошибка формы.
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator, status=Appeal.Status.CLOSED)
+    client.login(email=operator.email, password="secret")
+
+    response = client.post(
+        reverse(CLOSE_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"result": "Повторное закрытие."},
+    )
+
+    assert response.status_code == 200
+    assert "already closed" in response.content.decode().lower()
+
+
+# --- карточка обращения: доступность действий ---------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_detail_shows_take_into_work_for_responsible_on_new(client):
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department, status=Appeal.Status.NEW)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.get(reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.context["can_start_processing"] is True
+    assert "Взять в работу" in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_detail_hides_take_into_work_once_in_progress(client):
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department, status=Appeal.Status.IN_PROGRESS)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.get(reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.context["can_start_processing"] is False
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_detail_shows_close_button_for_owner_until_closed(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator, status=Appeal.Status.IN_PROGRESS)
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.context["can_close"] is True
+    assert "Закрыть обращение" in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_detail_hides_actions_and_shows_result_when_closed(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(
+        created_by=operator,
+        status=Appeal.Status.CLOSED,
+        result="Итоговый результат обработки.",
+    )
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk}))
+    content = response.content.decode()
+
+    assert response.context["can_close"] is False
+    assert response.context["can_start_processing"] is False
+    assert "Итоговый результат обработки." in content

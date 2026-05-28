@@ -43,7 +43,7 @@ def test_post_login_sends_staff_to_admin_panel(client):
 @pytest.mark.django_db
 @pytest.mark.functional
 def test_post_login_sends_staff_without_appeal_perms_to_admin_panel(client):
-    # Staff access alone is enough to land in the admin panel.
+    # Одного доступа в админку достаточно, чтобы попасть в панель.
     user = UserFactory(password="secret", is_staff=True)
     client.login(email=user.email, password="secret")
 
@@ -56,8 +56,8 @@ def test_post_login_sends_staff_without_appeal_perms_to_admin_panel(client):
 @pytest.mark.django_db
 @pytest.mark.functional
 def test_post_login_sends_nonstaff_admin_group_to_cabinet(client):
-    # Regression: an Admin-group member who is not staff has the appeal
-    # permissions but no admin access, so the cabinet is the right landing.
+    # Регрессия: участник группы Admin без доступа в админку имеет права на
+    # обращения, но не доступ к админке, поэтому верный переход — в кабинет.
     admin = _user_in_group(ADMIN_GROUP, password="secret")
     assert admin.is_staff is False
     client.login(email=admin.email, password="secret")
