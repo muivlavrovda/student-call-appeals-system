@@ -7,6 +7,7 @@ from appeals.views import (
     AppealDetailView,
     AppealListView,
     AppealStartProcessingView,
+    AppealTransferView,
 )
 
 app_name = "appeals"
@@ -29,5 +30,10 @@ urlpatterns = [
         "appeals/<int:pk>/close/",
         AppealCloseView.as_view(),
         name="appeal_close",
+    ),
+    path(
+        "appeals/<int:pk>/transfer/",
+        AppealTransferView.as_view(),
+        name="appeal_transfer",
     ),
 ]

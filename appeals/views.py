@@ -9,15 +9,23 @@ from appeals.access import (
     can_close_appeal,
     can_comment_appeal,
     can_start_appeal_processing,
+    can_transfer_appeal,
+    can_view_appeal,
     visible_appeals_for,
 )
-from appeals.forms import AppealCloseForm, AppealCommentForm, AppealCreateForm
+from appeals.forms import (
+    AppealCloseForm,
+    AppealCommentForm,
+    AppealCreateForm,
+    AppealTransferForm,
+)
 from appeals.models import Appeal
 from appeals.permissions import (
     ADD_APPEAL_PERMISSION,
     CLOSE_APPEAL_PERMISSION,
     COMMENT_APPEAL_PERMISSION,
     START_APPEAL_PROCESSING_PERMISSION,
+    TRANSFER_APPEAL_PERMISSION,
     VIEW_APPEAL_PERMISSION,
 )
 from appeals.services import (
@@ -25,6 +33,7 @@ from appeals.services import (
     close_appeal,
     create_appeal,
     start_appeal_processing,
+    transfer_appeal,
 )
 
 
@@ -128,6 +137,9 @@ class AppealDetailView(LoginRequiredMixin, PermissionRequiredMixin, DetailView):
             and can_start_appeal_processing(self.request.user, appeal)
         )
         context["can_close"] = appeal.status != Appeal.Status.CLOSED and can_close_appeal(
+            self.request.user, appeal
+        )
+        context["can_transfer"] = appeal.status != Appeal.Status.CLOSED and can_transfer_appeal(
             self.request.user, appeal
         )
         return context
@@ -254,3 +266,77 @@ class AppealCloseView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
 
     def get_success_url(self):
         return reverse("appeals:appeal_detail", kwargs={"pk": self.appeal.pk})
+
+
+class AppealTransferView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
+    """Перенос обращения в другую категорию или отдел.
+
+    Поля формы предзаполняются текущим маршрутом; сохранение делегируется
+    сервису ``transfer_appeal``, а его ошибки показываются на форме.
+    """
+
+    permission_required = TRANSFER_APPEAL_PERMISSION
+    template_name = "appeals/appeal_transfer.html"
+    form_class = AppealTransferForm
+
+    def get(self, request, *args, **kwargs):
+        self._load_appeal()
+        return super().get(request, *args, **kwargs)
+
+    def post(self, request, *args, **kwargs):
+        self._load_appeal()
+        return super().post(request, *args, **kwargs)
+
+    def _load_appeal(self):
+        # Доступные заявки дают 404 для чужого id (без раскрытия), а перенос
+        # дополнительно ограничен отделом, поэтому проверяем его по объекту.
+        self.appeal = get_object_or_404(
+            visible_appeals_for(self.request.user),
+            pk=self.kwargs["pk"],
+        )
+        if not can_transfer_appeal(self.request.user, self.appeal):
+            raise PermissionDenied
+
+    def get_initial(self):
+        return {
+            "category": self.appeal.category_id,
+            "department": self.appeal.department_id,
+        }
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["appeal"] = self.appeal
+        context["breadcrumbs"] = [
+            {"label": "Мои обращения", "url": reverse("appeals:appeal_list")},
+            {
+                "label": f"Обращение №{self.appeal.pk}",
+                "url": reverse("appeals:appeal_detail", kwargs={"pk": self.appeal.pk}),
+            },
+            {"label": "Перенаправление"},
+        ]
+        return context
+
+    def form_valid(self, form):
+        try:
+            transfer_appeal(
+                appeal=self.appeal,
+                transferred_by=self.request.user,
+                category=form.cleaned_data["category"],
+                department=form.cleaned_data["department"],
+            )
+        except ValidationError as error:
+            for message in error.messages:
+                form.add_error(None, message)
+            return self.form_invalid(form)
+
+        messages.success(self.request, "Обращение перенаправлено.")
+        return super().form_valid(form)
+
+    def get_success_url(self):
+        # Перенос в чужой отдел выводит заявку из зоны видимости сотрудника,
+        # поэтому возвращаем в карточку только если она ещё доступна, иначе —
+        # к списку обращений, чтобы не упереться в 404.
+        self.appeal.refresh_from_db()
+        if can_view_appeal(self.request.user, self.appeal):
+            return reverse("appeals:appeal_detail", kwargs={"pk": self.appeal.pk})
+        return reverse("appeals:appeal_list")
