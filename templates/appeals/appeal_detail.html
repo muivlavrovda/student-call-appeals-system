@@ -8,7 +8,7 @@
     {% include "appeals/_status_badge.html" with appeal=appeal %}
   </div>
 
-  {% if can_start_processing or can_close %}
+  {% if can_start_processing or can_close or can_transfer %}
     <div class="d-flex flex-wrap gap-2 mb-4">
       {% if can_start_processing %}
         <form method="post" action="{% url 'appeals:appeal_start_processing' appeal.pk %}">
@@ -18,6 +18,9 @@
       {% endif %}
       {% if can_close %}
         <a href="{% url 'appeals:appeal_close' appeal.pk %}" class="btn btn-success">Закрыть обращение</a>
+      {% endif %}
+      {% if can_transfer %}
+        <a href="{% url 'appeals:appeal_transfer' appeal.pk %}" class="btn btn-outline-primary">Перенаправить</a>
       {% endif %}
     </div>
   {% endif %}
