@@ -22,6 +22,7 @@ DETAIL_URL_NAME = "appeals:appeal_detail"
 COMMENT_URL_NAME = "appeals:appeal_comment_create"
 START_URL_NAME = "appeals:appeal_start_processing"
 CLOSE_URL_NAME = "appeals:appeal_close"
+TRANSFER_URL_NAME = "appeals:appeal_transfer"
 LOGIN_URL = "/accounts/login/"
 
 
@@ -937,3 +938,217 @@ def test_detail_hides_actions_and_shows_result_when_closed(client):
     assert response.context["can_close"] is False
     assert response.context["can_start_processing"] is False
     assert "Итоговый результат обработки." in content
+
+
+# --- перенаправление обращения -----------------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+def test_transfer_redirects_anonymous_to_login(client):
+    appeal = AppealFactory()
+    response = client.get(reverse(TRANSFER_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.status_code == 302
+    assert LOGIN_URL in response["Location"]
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+def test_transfer_forbidden_without_permission(client):
+    # Оператор может видеть свои обращения, но не может их перенаправлять.
+    operator = _user_in_group(OPERATOR_GROUP)
+    appeal = AppealFactory(created_by=operator)
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(TRANSFER_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+@pytest.mark.integration
+def test_transfer_returns_404_for_out_of_scope_appeal(client):
+    responsible, _ = _responsible_with_department()
+    other = AppealFactory()
+    client.login(email=responsible.email, password="secret")
+
+    response = client.get(reverse(TRANSFER_URL_NAME, kwargs={"pk": other.pk}))
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+@pytest.mark.integration
+def test_transfer_forbidden_for_visible_appeal_outside_department(client):
+    # Двойная роль: своё созданное обращение видно даже в чужом отделе, право на
+    # перенос есть, но проверка по отделу для объекта запрещает действие.
+    user = _user_in_group(OPERATOR_GROUP, RESPONSIBLE_GROUP)
+    other_department = DepartmentFactory()
+    appeal = AppealFactory(created_by=user, department=other_department)
+    client.login(email=user.email, password="secret")
+
+    response = client.get(reverse(TRANSFER_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.status_code == 403
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_transfer_form_is_prefilled_with_current_route(client):
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.get(reverse(TRANSFER_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.status_code == 200
+    initial = response.context["form"].initial
+    assert initial["category"] == appeal.category_id
+    assert initial["department"] == appeal.department_id
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_transfer_changes_category_and_writes_history(client):
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department)
+    new_category = AppealCategoryFactory(department=department)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.post(
+        reverse(TRANSFER_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"category": new_category.pk, "department": department.pk},
+    )
+
+    appeal.refresh_from_db()
+    assert appeal.category == new_category
+    assert appeal.department == department
+    assert response.status_code == 302
+    assert response["Location"] == reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk})
+
+    event = appeal.history_events.latest("created_at")
+    assert event.event_type == AppealHistoryEvent.EventType.CATEGORY_CHANGED
+    assert event.actor == responsible
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_transfer_changes_department(client):
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department)
+    target_department = DepartmentFactory()
+    target_department.members.add(responsible)
+    client.login(email=responsible.email, password="secret")
+
+    client.post(
+        reverse(TRANSFER_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"category": appeal.category_id, "department": target_department.pk},
+    )
+
+    appeal.refresh_from_db()
+    assert appeal.department == target_department
+
+    event = appeal.history_events.latest("created_at")
+    assert event.event_type == AppealHistoryEvent.EventType.DEPARTMENT_CHANGED
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_transfer_to_other_department_redirects_to_list(client):
+    # Перенос в чужой отдел выводит заявку из зоны видимости сотрудника, поэтому
+    # после успеха возвращаемся к списку, а не в недоступную карточку (404).
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department)
+    other_department = DepartmentFactory()  # ответственный в нём не состоит
+    target_category = AppealCategoryFactory(department=other_department)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.post(
+        reverse(TRANSFER_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"category": target_category.pk, "department": other_department.pk},
+    )
+
+    appeal.refresh_from_db()
+    assert appeal.department == other_department
+    assert response.status_code == 302
+    assert response["Location"] == reverse(LIST_URL_NAME)
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_transfer_shows_success_message(client):
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department)
+    new_category = AppealCategoryFactory(department=department)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.post(
+        reverse(TRANSFER_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"category": new_category.pk, "department": department.pk},
+        follow=True,
+    )
+
+    assert "Обращение перенаправлено." in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_transfer_rejects_unchanged_route(client):
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.post(
+        reverse(TRANSFER_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"category": appeal.category_id, "department": appeal.department_id},
+    )
+
+    assert response.status_code == 200
+    assert "unchanged" in response.content.decode().lower()
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_transfer_rejects_closed_appeal(client):
+    # После закрытия кнопка переноса скрыта, но прямой POST отклоняется сервисом.
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department, status=Appeal.Status.CLOSED)
+    new_category = AppealCategoryFactory(department=department)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.post(
+        reverse(TRANSFER_URL_NAME, kwargs={"pk": appeal.pk}),
+        data={"category": new_category.pk, "department": department.pk},
+    )
+
+    assert response.status_code == 200
+    appeal.refresh_from_db()
+    assert appeal.category != new_category
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_detail_shows_transfer_button_for_responsible(client):
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department, status=Appeal.Status.NEW)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.get(reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.context["can_transfer"] is True
+    assert "Перенаправить" in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_detail_hides_transfer_button_when_closed(client):
+    responsible, department = _responsible_with_department()
+    appeal = AppealFactory(department=department, status=Appeal.Status.CLOSED)
+    client.login(email=responsible.email, password="secret")
+
+    response = client.get(reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk}))
+
+    assert response.context["can_transfer"] is False
