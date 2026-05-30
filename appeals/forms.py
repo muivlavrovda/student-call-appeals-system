@@ -123,3 +123,36 @@ class AppealCloseForm(BootstrapFormMixin, forms.Form):
         ),
         error_messages={"required": "Опишите результат обработки."},
     )
+
+
+class AppealTransferForm(BootstrapFormMixin, forms.Form):
+    """Форма переноса обращения в другую категорию или отдел.
+
+    Поля предзаполняются текущим маршрутом заявки; сохранение выполняет сервис
+    ``transfer_appeal``, который отклоняет неизменённый маршрут и закрытые заявки.
+    """
+
+    category = forms.ModelChoiceField(
+        label="Категория",
+        queryset=AppealCategory.objects.none(),
+        error_messages={
+            "required": "Выберите категорию обращения.",
+            "invalid_choice": "Выберите категорию из списка.",
+        },
+    )
+
+    department = forms.ModelChoiceField(
+        label="Отдел",
+        queryset=Department.objects.none(),
+        error_messages={
+            "required": "Выберите отдел.",
+            "invalid_choice": "Выберите отдел из списка.",
+        },
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["category"].queryset = AppealCategory.objects.filter(
+            is_active=True,
+        ).select_related("department")
+        self.fields["department"].queryset = Department.objects.filter(is_active=True)
