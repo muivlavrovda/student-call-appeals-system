@@ -6,6 +6,9 @@ from appeals.views import (
     AppealCreateView,
     AppealDetailView,
     AppealListView,
+    AppealReportDocxView,
+    AppealReportView,
+    AppealReportXlsxView,
     AppealStartProcessingView,
     AppealTransferView,
 )
@@ -15,6 +18,17 @@ app_name = "appeals"
 urlpatterns = [
     path("appeals/", AppealListView.as_view(), name="appeal_list"),
     path("appeals/new/", AppealCreateView.as_view(), name="appeal_create"),
+    path("appeals/reports/", AppealReportView.as_view(), name="appeal_report"),
+    path(
+        "appeals/reports/export.xlsx",
+        AppealReportXlsxView.as_view(),
+        name="appeal_report_xlsx",
+    ),
+    path(
+        "appeals/reports/export.docx",
+        AppealReportDocxView.as_view(),
+        name="appeal_report_docx",
+    ),
     path("appeals/<int:pk>/", AppealDetailView.as_view(), name="appeal_detail"),
     path(
         "appeals/<int:pk>/comments/",

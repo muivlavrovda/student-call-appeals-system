@@ -1,9 +1,11 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
-from django.views.generic import DetailView, FormView, ListView, View
+from django.utils import timezone
+from django.views.generic import DetailView, FormView, ListView, TemplateView, View
 
 from appeals.access import (
     can_close_appeal,
@@ -13,6 +15,7 @@ from appeals.access import (
     can_view_appeal,
     visible_appeals_for,
 )
+from appeals.exports import report_to_docx, report_to_xlsx
 from appeals.forms import (
     AppealCloseForm,
     AppealCommentForm,
@@ -28,6 +31,7 @@ from appeals.permissions import (
     TRANSFER_APPEAL_PERMISSION,
     VIEW_APPEAL_PERMISSION,
 )
+from appeals.reports import build_appeal_report
 from appeals.services import (
     add_appeal_comment,
     close_appeal,
@@ -340,3 +344,65 @@ class AppealTransferView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
         if can_view_appeal(self.request.user, self.appeal):
             return reverse("appeals:appeal_detail", kwargs={"pk": self.appeal.pk})
         return reverse("appeals:appeal_list")
+
+
+class AppealReportMixin(LoginRequiredMixin, PermissionRequiredMixin):
+    """Общий доступ и сбор сводки для страницы отчёта и его выгрузок.
+
+    Отчёт строится по тем же доступным пользователю заявкам, что и список,
+    поэтому оператор видит сводку по своим обращениям, ответственный — по
+    обращениям своих отделов, администратор — по всем. Отдельного права не
+    требуется: достаточно права на просмотр.
+    """
+
+    permission_required = VIEW_APPEAL_PERMISSION
+
+    def get_report(self):
+        return build_appeal_report(visible_appeals_for(self.request.user))
+
+
+class AppealReportView(AppealReportMixin, TemplateView):
+    """Страница сводного отчёта по обращениям с кнопками выгрузки."""
+
+    template_name = "appeals/appeal_report.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["report"] = self.get_report()
+        context["breadcrumbs"] = [
+            {"label": "Мои обращения", "url": reverse("appeals:appeal_list")},
+            {"label": "Отчёты"},
+        ]
+        return context
+
+
+class AppealReportXlsxView(AppealReportMixin, View):
+    """Выгрузка сводного отчёта в файл .xlsx."""
+
+    def get(self, request):
+        content = report_to_xlsx(self.get_report(), generated_at=timezone.now())
+        return _file_response(
+            content,
+            filename="appeal-report.xlsx",
+            content_type=("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+        )
+
+
+class AppealReportDocxView(AppealReportMixin, View):
+    """Выгрузка сводного отчёта в файл .docx."""
+
+    def get(self, request):
+        content = report_to_docx(self.get_report(), generated_at=timezone.now())
+        return _file_response(
+            content,
+            filename="appeal-report.docx",
+            content_type=(
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            ),
+        )
+
+
+def _file_response(content: bytes, *, filename: str, content_type: str) -> HttpResponse:
+    response = HttpResponse(content, content_type=content_type)
+    response["Content-Disposition"] = f'attachment; filename="{filename}"'
+    return response
