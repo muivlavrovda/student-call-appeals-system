@@ -14,21 +14,53 @@
     </button>
     <div class="collapse navbar-collapse" id="primary-nav">
       {% with view_name=request.resolver_match.view_name %}
+      {% with info_views="public:about public:how_to public:process public:categories public:analytics public:faq public:documents" %}
       <ul class="navbar-nav me-auto mb-2 mb-lg-0">
         <li class="nav-item">
           <a class="nav-link{% if view_name == 'public:home' %} active{% endif %}"
              {% if view_name == 'public:home' %}aria-current="page"{% endif %}
              href="{% url 'public:home' %}">Главная</a>
         </li>
-        <li class="nav-item">
-          <a class="nav-link{% if view_name == 'public:about' %} active{% endif %}"
-             {% if view_name == 'public:about' %}aria-current="page"{% endif %}
-             href="{% url 'public:about' %}">О сервисе</a>
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle{% if view_name in info_views %} active{% endif %}"
+             href="#" id="info-menu" role="button" data-bs-toggle="dropdown"
+             aria-expanded="false"
+             {% if view_name in info_views %}aria-current="page"{% endif %}>Информация</a>
+          <ul class="dropdown-menu" aria-labelledby="info-menu">
+            <li>
+              <a class="dropdown-item{% if view_name == 'public:about' %} active{% endif %}"
+                 href="{% url 'public:about' %}">О сервисе</a>
+            </li>
+            <li>
+              <a class="dropdown-item{% if view_name == 'public:how_to' %} active{% endif %}"
+                 href="{% url 'public:how_to' %}">Как подать обращение</a>
+            </li>
+            <li>
+              <a class="dropdown-item{% if view_name == 'public:process' %} active{% endif %}"
+                 href="{% url 'public:process' %}">Порядок обработки</a>
+            </li>
+            <li>
+              <a class="dropdown-item{% if view_name == 'public:categories' %} active{% endif %}"
+                 href="{% url 'public:categories' %}">Категории обращений</a>
+            </li>
+            <li>
+              <a class="dropdown-item{% if view_name == 'public:analytics' %} active{% endif %}"
+                 href="{% url 'public:analytics' %}">Аналитика и отчеты</a>
+            </li>
+            <li>
+              <a class="dropdown-item{% if view_name == 'public:faq' %} active{% endif %}"
+                 href="{% url 'public:faq' %}">Вопросы и ответы</a>
+            </li>
+            <li>
+              <a class="dropdown-item{% if view_name == 'public:documents' %} active{% endif %}"
+                 href="{% url 'public:documents' %}">Нормативные документы</a>
+            </li>
+          </ul>
         </li>
         <li class="nav-item">
-          <a class="nav-link{% if view_name == 'public:categories' %} active{% endif %}"
-             {% if view_name == 'public:categories' %}aria-current="page"{% endif %}
-             href="{% url 'public:categories' %}">Категории обращений</a>
+          <a class="nav-link{% if view_name == 'public:contacts' %} active{% endif %}"
+             {% if view_name == 'public:contacts' %}aria-current="page"{% endif %}
+             href="{% url 'public:contacts' %}">Контакты</a>
         </li>
         <li class="nav-item">
           <a class="nav-link{% if view_name == 'public:feedback' %} active{% endif %}"
@@ -77,6 +109,7 @@
           </li>
         {% endif %}
       </ul>
+      {% endwith %}
       {% endwith %}
     </div>
   </div>
