@@ -4,7 +4,13 @@ from django.urls import reverse
 PUBLIC_PAGES = [
     ("public:home", "/", "public/home.html"),
     ("public:about", "/about/", "public/about.html"),
+    ("public:how_to", "/how-to/", "public/how_to.html"),
+    ("public:process", "/process/", "public/process.html"),
     ("public:categories", "/categories/", "public/categories.html"),
+    ("public:analytics", "/analytics/", "public/analytics.html"),
+    ("public:faq", "/faq/", "public/faq.html"),
+    ("public:contacts", "/contacts/", "public/contacts.html"),
+    ("public:documents", "/documents/", "public/documents.html"),
     ("public:feedback", "/feedback/", "public/feedback.html"),
 ]
 
