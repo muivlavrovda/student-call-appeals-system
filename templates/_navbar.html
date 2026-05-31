@@ -41,6 +41,11 @@
                {% if view_name == 'appeals:appeal_list' %}aria-current="page"{% endif %}
                href="{% url 'appeals:appeal_list' %}">Мои обращения</a>
           </li>
+          <li class="nav-item">
+            <a class="nav-link{% if view_name == 'appeals:appeal_report' %} active{% endif %}"
+               {% if view_name == 'appeals:appeal_report' %}aria-current="page"{% endif %}
+               href="{% url 'appeals:appeal_report' %}">Отчёты</a>
+          </li>
         {% endif %}
       </ul>
 

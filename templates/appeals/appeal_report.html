@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block title %}Отчёты — Журнал учета телефонных обращений{% endblock %}
+
+{% block content %}
+  <div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <h1 class="h3 mb-0">Отчёты по обращениям</h1>
+    <div class="d-flex flex-wrap gap-2">
+      <a href="{% url 'appeals:appeal_report_xlsx' %}" class="btn btn-outline-primary">Скачать .xlsx</a>
+      <a href="{% url 'appeals:appeal_report_docx' %}" class="btn btn-outline-primary">Скачать .docx</a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-sm-6 col-lg-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-secondary small">Всего обращений</div>
+          <div class="h3 mb-0">{{ report.total }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-sm-6 col-lg-3">
+      <div class="card h-100">
+        <div class="card-body">
+          <div class="text-secondary small">Просрочено</div>
+          <div class="h3 mb-0">{{ report.overdue }}</div>
+        </div>
+      </div>
+    </div>
+    {% for row in report.by_status %}
+      <div class="col-sm-6 col-lg-3">
+        <div class="card h-100">
+          <div class="card-body">
+            <div class="text-secondary small">{{ row.label }}</div>
+            <div class="h3 mb-0">{{ row.count }}</div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+
+  <div class="row g-4">
+    <div class="col-lg-6">
+      {% include "appeals/_breakdown_table.html" with table_id="by-category" title="По категориям" group_label="Категория" rows=report.by_category %}
+    </div>
+    <div class="col-lg-6">
+      {% include "appeals/_breakdown_table.html" with table_id="by-department" title="По отделам" group_label="Отдел" rows=report.by_department %}
+    </div>
+  </div>
+{% endblock %}

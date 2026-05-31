@@ -1,0 +1,30 @@
+{% comment %}
+  Разбивка обращений по группам (статус / категория / отдел).
+  Ожидает: title — заголовок, group_label — подпись первого столбца,
+  rows — список объектов с полями label и count.
+{% endcomment %}
+<section class="card h-100" aria-labelledby="{{ table_id }}-heading">
+  <div class="card-body">
+    <h2 id="{{ table_id }}-heading" class="h6 card-title mb-3">{{ title }}</h2>
+    {% if rows %}
+      <table class="table table-sm mb-0">
+        <thead>
+          <tr>
+            <th scope="col">{{ group_label }}</th>
+            <th scope="col" class="text-end">Обращений</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr>
+              <td>{{ row.label }}</td>
+              <td class="text-end">{{ row.count }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    {% else %}
+      <p class="text-secondary mb-0">Нет данных.</p>
+    {% endif %}
+  </div>
+</section>
