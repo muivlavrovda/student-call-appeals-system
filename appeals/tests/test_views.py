@@ -1,9 +1,11 @@
 from datetime import timedelta
+from io import BytesIO
 
 import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils import timezone
+from openpyxl import load_workbook
 
 from appeals.models import Appeal, AppealComment, AppealHistoryEvent
 from appeals.roles import ADMIN_GROUP, OPERATOR_GROUP, RESPONSIBLE_GROUP, sync_access_groups
@@ -23,6 +25,11 @@ COMMENT_URL_NAME = "appeals:appeal_comment_create"
 START_URL_NAME = "appeals:appeal_start_processing"
 CLOSE_URL_NAME = "appeals:appeal_close"
 TRANSFER_URL_NAME = "appeals:appeal_transfer"
+REPORT_URL_NAME = "appeals:appeal_report"
+REPORT_XLSX_URL_NAME = "appeals:appeal_report_xlsx"
+REPORT_DOCX_URL_NAME = "appeals:appeal_report_docx"
+XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 LOGIN_URL = "/accounts/login/"
 
 
@@ -1152,3 +1159,152 @@ def test_detail_hides_transfer_button_when_closed(client):
     response = client.get(reverse(DETAIL_URL_NAME, kwargs={"pk": appeal.pk}))
 
     assert response.context["can_transfer"] is False
+
+
+# --- отчёты: доступ ----------------------------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+@pytest.mark.parametrize(
+    "url_name",
+    [REPORT_URL_NAME, REPORT_XLSX_URL_NAME, REPORT_DOCX_URL_NAME],
+)
+def test_report_redirects_anonymous_to_login(client, url_name):
+    response = client.get(reverse(url_name))
+
+    assert response.status_code == 302
+    assert LOGIN_URL in response["Location"]
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+@pytest.mark.parametrize(
+    "url_name",
+    [REPORT_URL_NAME, REPORT_XLSX_URL_NAME, REPORT_DOCX_URL_NAME],
+)
+def test_report_forbidden_without_view_permission(client, url_name):
+    user = UserFactory(password="secret")
+    client.login(email=user.email, password="secret")
+
+    response = client.get(reverse(url_name))
+
+    assert response.status_code == 403
+
+
+# --- отчёты: содержимое страницы и охват -------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_report_page_renders_summary(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    AppealFactory(created_by=operator, status=Appeal.Status.NEW)
+    AppealFactory(created_by=operator, status=Appeal.Status.CLOSED)
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(REPORT_URL_NAME))
+
+    assert response.status_code == 200
+    assert response.context["report"].total == 2
+    content = response.content.decode()
+    assert "Отчёты по обращениям" in content
+    assert "Скачать .xlsx" in content
+    assert "Скачать .docx" in content
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+@pytest.mark.integration
+def test_report_scopes_to_operator_own_appeals(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    AppealFactory(created_by=operator)
+    AppealFactory()  # чужая заявка не должна попасть в сводку
+
+    client.login(email=operator.email, password="secret")
+    response = client.get(reverse(REPORT_URL_NAME))
+
+    assert response.context["report"].total == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+@pytest.mark.integration
+def test_report_scopes_to_responsible_department(client):
+    responsible, department = _responsible_with_department()
+    AppealFactory(department=department)
+    AppealFactory()  # заявка чужого отдела
+
+    client.login(email=responsible.email, password="secret")
+    response = client.get(reverse(REPORT_URL_NAME))
+
+    assert response.context["report"].total == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+@pytest.mark.integration
+def test_report_covers_all_appeals_for_admin(client):
+    admin = _user_in_group(ADMIN_GROUP)
+    AppealFactory()
+    AppealFactory()
+
+    client.login(email=admin.email, password="secret")
+    response = client.get(reverse(REPORT_URL_NAME))
+
+    assert response.context["report"].total == 2
+
+
+# --- отчёты: выгрузка файлов -------------------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_report_xlsx_download_headers(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    AppealFactory(created_by=operator)
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(REPORT_XLSX_URL_NAME))
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == XLSX_CONTENT_TYPE
+    assert "attachment" in response["Content-Disposition"]
+    assert "appeal-report.xlsx" in response["Content-Disposition"]
+    assert response.content
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_report_docx_download_headers(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    AppealFactory(created_by=operator)
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(REPORT_DOCX_URL_NAME))
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == DOCX_CONTENT_TYPE
+    assert "attachment" in response["Content-Disposition"]
+    assert "appeal-report.docx" in response["Content-Disposition"]
+    assert response.content
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+@pytest.mark.integration
+def test_report_xlsx_download_respects_scope(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    AppealFactory(created_by=operator)
+    AppealFactory()  # чужая заявка
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(REPORT_XLSX_URL_NAME))
+
+    workbook = load_workbook(BytesIO(response.content))
+    summary = workbook["Сводка"]
+    totals = {
+        summary.cell(row=row, column=1).value: summary.cell(row=row, column=2).value
+        for row in range(1, summary.max_row + 1)
+    }
+    assert totals["Всего обращений"] == 1
