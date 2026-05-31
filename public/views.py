@@ -33,6 +33,72 @@ class CategoriesView(TemplateView):
         return context
 
 
+class HowToView(TemplateView):
+    """Страница с порядком подачи телефонного обращения."""
+
+    template_name = "public/how_to.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["breadcrumbs"] = [{"label": "Как подать обращение"}]
+        return context
+
+
+class ProcessView(TemplateView):
+    """Страница с описанием жизненного цикла заявки."""
+
+    template_name = "public/process.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["breadcrumbs"] = [{"label": "Порядок обработки"}]
+        return context
+
+
+class AnalyticsView(TemplateView):
+    """Страница с описанием аналитики и отчетов по обращениям."""
+
+    template_name = "public/analytics.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["breadcrumbs"] = [{"label": "Аналитика и отчеты"}]
+        return context
+
+
+class FaqView(TemplateView):
+    """Страница с ответами на частые вопросы о сервисе."""
+
+    template_name = "public/faq.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["breadcrumbs"] = [{"label": "Вопросы и ответы"}]
+        return context
+
+
+class ContactsView(TemplateView):
+    """Страница с контактной информацией сервиса."""
+
+    template_name = "public/contacts.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["breadcrumbs"] = [{"label": "Контакты"}]
+        return context
+
+
+class DocumentsView(TemplateView):
+    """Страница со списком нормативных документов."""
+
+    template_name = "public/documents.html"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+        context["breadcrumbs"] = [{"label": "Нормативные документы"}]
+        return context
+
+
 class FeedbackView(CreateView):
     """Публичная форма обратной связи.
 
