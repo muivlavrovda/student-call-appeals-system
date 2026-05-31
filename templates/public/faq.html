@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+
+{% block title %}Вопросы и ответы — Журнал учета телефонных обращений{% endblock %}
+
+{% block content %}
+  <section class="mb-4">
+    <h1 class="h2 mb-3">Вопросы и ответы</h1>
+    <p class="mb-0">
+      Ниже собраны вопросы, которые чаще всего возникают у обучающихся и
+      сотрудников в связи с работой сервиса.
+    </p>
+  </section>
+
+  <section>
+    <div class="accordion" id="faq">
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="faq-1-heading">
+          <button class="accordion-button" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#faq-1" aria-expanded="true" aria-controls="faq-1">
+            Можно ли подать обращение через сайт?
+          </button>
+        </h2>
+        <div id="faq-1" class="accordion-collapse collapse show"
+             aria-labelledby="faq-1-heading" data-bs-parent="#faq">
+          <div class="accordion-body">
+            Нет. Подача обращения через сайт не предусмотрена. Обращение
+            регистрируется оператором по итогам телефонного звонка, и иного
+            способа его создания в системе не имеется. Сайт выполняет
+            справочную функцию и служит для ознакомления с порядком работы
+            сервиса; для вопросов и замечаний, касающихся непосредственно работы
+            сайта, предусмотрена форма обратной связи.
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="faq-2-heading">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#faq-2" aria-expanded="false" aria-controls="faq-2">
+            Записывает ли сервис телефонные разговоры?
+          </button>
+        </h2>
+        <div id="faq-2" class="accordion-collapse collapse"
+             aria-labelledby="faq-2-heading" data-bs-parent="#faq">
+          <div class="accordion-body">
+            Нет. Запись разговоров не ведётся. В системе хранится только заявка,
+            составленная оператором по итогам звонка.
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="faq-3-heading">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#faq-3" aria-expanded="false" aria-controls="faq-3">
+            Как определяется ответственный отдел?
+          </button>
+        </h2>
+        <div id="faq-3" class="accordion-collapse collapse"
+             aria-labelledby="faq-3-heading" data-bs-parent="#faq">
+          <div class="accordion-body">
+            Ответственное подразделение и срок обработки определяются исходя из
+            категории обращения. Предварительную категорию система предлагает
+            автоматически — на основании краткого описания вопроса; за оператором
+            при этом сохраняется право уточнить или изменить её до сохранения
+            заявки. Таким образом, окончательное отнесение обращения к
+            подразделению остаётся на усмотрение принявшего звонок сотрудника.
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="faq-4-heading">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#faq-4" aria-expanded="false" aria-controls="faq-4">
+            Что означает просроченная заявка?
+          </button>
+        </h2>
+        <div id="faq-4" class="accordion-collapse collapse"
+             aria-labelledby="faq-4-heading" data-bs-parent="#faq">
+          <div class="accordion-body">
+            Так обозначается заявка, не закрытая до истечения установленного
+            срока обработки. На порядок рассмотрения это не влияет — заявка
+            обрабатывается как обычно; признак просрочки используется лишь при
+            последующем анализе.
+          </div>
+        </div>
+      </div>
+
+      <div class="accordion-item">
+        <h2 class="accordion-header" id="faq-5-heading">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                  data-bs-target="#faq-5" aria-expanded="false" aria-controls="faq-5">
+            Кто имеет доступ к данным обращений?
+          </button>
+        </h2>
+        <div id="faq-5" class="accordion-collapse collapse"
+             aria-labelledby="faq-5-heading" data-bs-parent="#faq">
+          <div class="accordion-body">
+            Доступ к закрытой части системы предоставляется по логину и паролю и
+            только сотрудникам, которым он необходим для исполнения должностных
+            обязанностей. После входа пользователю отображаются исключительно те
+            разделы и обращения, которые отнесены к его правам доступа; данные
+            сверх этого объёма ему недоступны.
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+{% endblock %}
