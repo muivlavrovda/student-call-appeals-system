@@ -1,14 +1,16 @@
 {% comment %}
 Постраничная навигация Bootstrap для списков на основе ListView.
 Использует page_obj/paginator из контекста; отображается только при наличии
-нескольких страниц. Параметр страницы передается как ?page=N.
+нескольких страниц. Параметр страницы передается как ?page=N. Если в контексте
+есть querystring (прочие параметры запроса без page), он добавляется к ссылкам,
+чтобы фильтры и сортировка сохранялись при переходе между страницами.
 {% endcomment %}
 {% if is_paginated %}
   <nav aria-label="Постраничная навигация">
     <ul class="pagination">
       {% if page_obj.has_previous %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Назад</a>
+          <a class="page-link" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Назад</a>
         </li>
       {% else %}
         <li class="page-item disabled">
@@ -24,7 +26,7 @@
 
       {% if page_obj.has_next %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ page_obj.next_page_number }}">Вперед</a>
+          <a class="page-link" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Вперед</a>
         </li>
       {% else %}
         <li class="page-item disabled">

@@ -1,6 +1,7 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
+from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
@@ -20,9 +21,10 @@ from appeals.forms import (
     AppealCloseForm,
     AppealCommentForm,
     AppealCreateForm,
+    AppealFilterForm,
     AppealTransferForm,
 )
-from appeals.models import Appeal
+from appeals.models import Appeal, normalize_phone
 from appeals.permissions import (
     ADD_APPEAL_PERMISSION,
     CLOSE_APPEAL_PERMISSION,
@@ -53,16 +55,62 @@ class AppealListView(LoginRequiredMixin, PermissionRequiredMixin, ListView):
     context_object_name = "appeals"
     paginate_by = 20
 
+    def get_filter_form(self):
+        # Форму создаём один раз за запрос: ей пользуются и отбор заявок,
+        # и отрисовка панели фильтров в контексте.
+        if not hasattr(self, "_filter_form"):
+            self._filter_form = AppealFilterForm(self.request.GET or None)
+        return self._filter_form
+
     def get_queryset(self):
-        return visible_appeals_for(self.request.user).select_related(
+        # Фильтры применяются поверх доступных пользователю заявок, поэтому
+        # отбор не может расширить видимость за пределы прав доступа.
+        queryset = visible_appeals_for(self.request.user).select_related(
             "category",
             "department",
         )
 
+        form = self.get_filter_form()
+        if not form.is_valid():
+            return queryset.order_by(AppealFilterForm.DEFAULT_SORT)
+
+        data = form.cleaned_data
+        if data.get("q"):
+            queryset = self._apply_search(queryset, data["q"])
+        if data.get("status"):
+            queryset = queryset.filter(status=data["status"])
+        if data.get("category"):
+            queryset = queryset.filter(category=data["category"])
+        if data.get("department"):
+            queryset = queryset.filter(department=data["department"])
+
+        return queryset.order_by(data["sort"])
+
+    def _apply_search(self, queryset, query):
+        # Телефон в базе хранится в нормализованном виде, поэтому поисковый
+        # запрос нормализуем так же — иначе "+7 900…" не найдёт "7900…".
+        phone_query = normalize_phone(query)
+        filters = Q(student_full_name__icontains=query) | Q(summary__icontains=query)
+        if phone_query:
+            filters |= Q(student_phone__icontains=phone_query)
+        return queryset.filter(filters)
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["breadcrumbs"] = [{"label": "Мои обращения"}]
+        context["filter_form"] = self.get_filter_form()
+        # Признак активного фильтра — чтобы отличить пустую выдачу от
+        # «ничего не найдено» и показать кнопку сброса.
+        context["filters_active"] = bool(self.request.GET)
+        context["querystring"] = self._querystring_without_page()
         return context
+
+    def _querystring_without_page(self):
+        # Прочие параметры запроса без page — чтобы ссылки пагинации сохраняли
+        # фильтры и сортировку, а не сбрасывали их при переходе на страницу.
+        params = self.request.GET.copy()
+        params.pop("page", None)
+        return params.urlencode()
 
 
 class AppealCreateView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
