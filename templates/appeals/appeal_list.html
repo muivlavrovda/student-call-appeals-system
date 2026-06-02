@@ -10,6 +10,34 @@
     {% endif %}
   </div>
 
+  <form method="get" class="card mb-4">
+    <div class="card-body">
+      <div class="row g-3 align-items-end">
+        <div class="col-12 col-lg-4">
+          {% include "_field.html" with field=filter_form.q %}
+        </div>
+        <div class="col-6 col-lg-2">
+          {% include "_field.html" with field=filter_form.status %}
+        </div>
+        <div class="col-6 col-lg-3">
+          {% include "_field.html" with field=filter_form.category %}
+        </div>
+        <div class="col-6 col-lg-3">
+          {% include "_field.html" with field=filter_form.department %}
+        </div>
+        <div class="col-6 col-lg-3">
+          {% include "_field.html" with field=filter_form.sort %}
+        </div>
+        <div class="col-12 col-lg-auto d-flex gap-2">
+          <button type="submit" class="btn btn-primary">Найти</button>
+          {% if filters_active %}
+            <a href="{% url 'appeals:appeal_list' %}" class="btn btn-outline-secondary">Сбросить</a>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </form>
+
   {% if appeals %}
     <div class="table-responsive">
       <table class="table table-hover align-middle">
@@ -43,6 +71,10 @@
     </div>
 
     {% include "_pagination.html" %}
+  {% elif filters_active %}
+    <div class="alert alert-warning mb-0" role="alert">
+      По заданным условиям обращений не найдено.
+    </div>
   {% else %}
     <div class="alert alert-info mb-0" role="alert">
       Обращений пока нет.
