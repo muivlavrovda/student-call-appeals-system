@@ -174,6 +174,172 @@ def test_appeal_list_is_paginated(client):
     assert len(response.context["appeals"]) == 20
 
 
+# --- список обращений: поиск, фильтрация, сортировка -------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_list_search_matches_name_and_summary(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    target = AppealFactory(
+        created_by=operator,
+        student_full_name="Петров Пётр",
+        summary="Вопрос про общежитие",
+    )
+    AppealFactory(created_by=operator, student_full_name="Сидоров Иван", summary="Справка")
+    client.login(email=operator.email, password="secret")
+
+    by_name = client.get(reverse(LIST_URL_NAME), {"q": "Петров"})
+    by_summary = client.get(reverse(LIST_URL_NAME), {"q": "общежитие"})
+
+    assert list(by_name.context["appeals"]) == [target]
+    assert list(by_summary.context["appeals"]) == [target]
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_list_search_matches_normalized_phone(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    # В базе телефон хранится нормализованным (7XXXXXXXXXX); ищем в «человеческом»
+    # формате и всё равно находим.
+    target = AppealFactory(created_by=operator, student_phone="+7 (900) 111-22-33")
+    AppealFactory(created_by=operator, student_phone="+7 (900) 999-88-77")
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(LIST_URL_NAME), {"q": "8 (900) 111-22-33"})
+
+    assert list(response.context["appeals"]) == [target]
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_list_filters_by_status(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    new_one = AppealFactory(created_by=operator, status=Appeal.Status.NEW)
+    AppealFactory(created_by=operator, status=Appeal.Status.CLOSED)
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(LIST_URL_NAME), {"status": Appeal.Status.NEW})
+
+    assert list(response.context["appeals"]) == [new_one]
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_list_filters_by_category_and_department(client):
+    admin = _user_in_group(ADMIN_GROUP)
+    learning = DepartmentFactory(name="Учебный отдел")
+    hr = DepartmentFactory(name="Отдел кадров")
+    certificates = AppealCategoryFactory(name="Справки", department=learning)
+    staffing = AppealCategoryFactory(name="Кадры", department=hr)
+    cert_appeal = AppealFactory(category=certificates, department=learning)
+    AppealFactory(category=staffing, department=hr)
+    client.login(email=admin.email, password="secret")
+
+    by_category = client.get(reverse(LIST_URL_NAME), {"category": certificates.pk})
+    by_department = client.get(reverse(LIST_URL_NAME), {"department": learning.pk})
+
+    assert list(by_category.context["appeals"]) == [cert_appeal]
+    assert list(by_department.context["appeals"]) == [cert_appeal]
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_list_sorts_by_due_date(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    now = timezone.now()
+    later = AppealFactory(created_by=operator, due_at=now + timedelta(days=10))
+    sooner = AppealFactory(created_by=operator, due_at=now + timedelta(days=1))
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(LIST_URL_NAME), {"sort": "due_at"})
+
+    assert list(response.context["appeals"]) == [sooner, later]
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_list_default_sort_is_newest_first(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    older = AppealFactory(created_by=operator, created_at=timezone.now() - timedelta(days=2))
+    newer = AppealFactory(created_by=operator, created_at=timezone.now())
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(LIST_URL_NAME))
+
+    assert list(response.context["appeals"]) == [newer, older]
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_list_ignores_unknown_sort(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    older = AppealFactory(created_by=operator, created_at=timezone.now() - timedelta(days=2))
+    newer = AppealFactory(created_by=operator, created_at=timezone.now())
+    client.login(email=operator.email, password="secret")
+
+    # Неизвестное значение сортировки не должно влиять на запрос — откат к
+    # сортировке по умолчанию (сначала новые).
+    response = client.get(reverse(LIST_URL_NAME), {"sort": "student_phone"})
+
+    assert list(response.context["appeals"]) == [newer, older]
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_list_shows_not_found_state_when_filtered(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    AppealFactory(created_by=operator, summary="Справка об обучении")
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(LIST_URL_NAME), {"q": "несуществующий запрос"})
+
+    assert response.context["filters_active"] is True
+    assert "не найдено" in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+@pytest.mark.integration
+def test_appeal_list_filters_cannot_escape_access_scope(client):
+    # Фильтр применяется поверх доступных заявок, поэтому подбор параметров под
+    # чужую заявку (её отдел и статус) не выводит её в выдачу.
+    operator = _user_in_group(OPERATOR_GROUP)
+    own = AppealFactory(created_by=operator, status=Appeal.Status.NEW)
+    others = AppealFactory(status=Appeal.Status.NEW)
+    client.login(email=operator.email, password="secret")
+
+    # Запрос целится в чужой отдел: чужая заявка остаётся невидимой, а своя
+    # заявка под условие чужого отдела закономерно не попадает.
+    targeted = client.get(
+        reverse(LIST_URL_NAME),
+        {"status": Appeal.Status.NEW, "department": others.department_id},
+    )
+    assert others not in targeted.context["appeals"]
+    assert own not in targeted.context["appeals"]
+
+    # Без фильтра по отделу оператор по-прежнему видит только свою заявку.
+    own_only = client.get(reverse(LIST_URL_NAME), {"status": Appeal.Status.NEW})
+    appeals = list(own_only.context["appeals"])
+    assert own in appeals
+    assert others not in appeals
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_list_pagination_keeps_filters(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    AppealFactory.create_batch(25, created_by=operator, status=Appeal.Status.NEW)
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(LIST_URL_NAME), {"status": Appeal.Status.NEW})
+
+    assert response.context["is_paginated"] is True
+    # Ссылки пагинации сохраняют активный фильтр (через querystring без page).
+    assert response.context["querystring"] == f"status={Appeal.Status.NEW}"
+    assert f"?status={Appeal.Status.NEW}&page=2" in response.content.decode()
+
+
 # --- создание обращения: контроль доступа ------------------------------------
 
 
