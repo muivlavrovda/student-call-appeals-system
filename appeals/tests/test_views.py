@@ -28,9 +28,17 @@ TRANSFER_URL_NAME = "appeals:appeal_transfer"
 REPORT_URL_NAME = "appeals:appeal_report"
 REPORT_XLSX_URL_NAME = "appeals:appeal_report_xlsx"
 REPORT_DOCX_URL_NAME = "appeals:appeal_report_docx"
+REPORT_FILE_URL_NAME = "appeals:appeal_report_file"
 XLSX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
 DOCX_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 LOGIN_URL = "/accounts/login/"
+
+
+@pytest.fixture(autouse=True)
+def _isolated_media(settings, tmp_path):
+    # Выгрузка отчётов сохраняет копии на диск; направляем MEDIA_ROOT во
+    # временный каталог, чтобы тесты не писали в реальную папку проекта.
+    settings.MEDIA_ROOT = tmp_path
 
 
 def _responsible_with_department(*, password: str = "secret"):
@@ -1474,3 +1482,94 @@ def test_report_xlsx_download_respects_scope(client):
         for row in range(1, summary.max_row + 1)
     }
     assert totals["Всего обращений"] == 1
+
+
+# --- отчёты: сохранённые на диск файлы ---------------------------------------
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_report_export_saves_file_to_disk(client, settings):
+    operator = _user_in_group(OPERATOR_GROUP)
+    AppealFactory(created_by=operator)
+    client.login(email=operator.email, password="secret")
+
+    client.get(reverse(REPORT_XLSX_URL_NAME))
+
+    # После выгрузки в каталоге reports появляется сохранённый файл.
+    reports_dir = settings.MEDIA_ROOT / "reports"
+    saved = list(reports_dir.glob("*.xlsx"))
+    assert len(saved) == 1
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_report_page_lists_saved_files(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    AppealFactory(created_by=operator)
+    client.login(email=operator.email, password="secret")
+
+    # Сначала формируем файл, затем он должен появиться в списке на странице.
+    client.get(reverse(REPORT_DOCX_URL_NAME))
+    response = client.get(reverse(REPORT_URL_NAME))
+
+    stored = response.context["stored_reports"]
+    assert len(stored) == 1
+    assert stored[0].name in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_saved_report_file_downloads_with_content(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    AppealFactory(created_by=operator)
+    client.login(email=operator.email, password="secret")
+
+    exported = client.get(reverse(REPORT_XLSX_URL_NAME))
+    page = client.get(reverse(REPORT_URL_NAME))
+    name = page.context["stored_reports"][0].name
+
+    response = client.get(reverse(REPORT_FILE_URL_NAME, kwargs={"name": name}))
+
+    assert response.status_code == 200
+    assert response["Content-Type"] == XLSX_CONTENT_TYPE
+    assert name in response["Content-Disposition"]
+    # С диска отдаётся ровно то, что было выгружено.
+    assert response.content == exported.content
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_saved_report_file_missing_returns_404(client):
+    operator = _user_in_group(OPERATOR_GROUP)
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(
+        reverse(REPORT_FILE_URL_NAME, kwargs={"name": "appeal-report-00000000-000000.xlsx"}),
+    )
+
+    assert response.status_code == 404
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+def test_saved_report_file_redirects_anonymous_to_login(client):
+    response = client.get(
+        reverse(REPORT_FILE_URL_NAME, kwargs={"name": "appeal-report.xlsx"}),
+    )
+
+    assert response.status_code == 302
+    assert LOGIN_URL in response["Location"]
+
+
+@pytest.mark.django_db
+@pytest.mark.security
+def test_saved_report_file_forbidden_without_view_permission(client):
+    user = UserFactory(password="secret")
+    client.login(email=user.email, password="secret")
+
+    response = client.get(
+        reverse(REPORT_FILE_URL_NAME, kwargs={"name": "appeal-report.xlsx"}),
+    )
+
+    assert response.status_code == 403
