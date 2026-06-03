@@ -40,7 +40,7 @@
     {% endfor %}
   </div>
 
-  <div class="row g-4">
+  <div class="row g-4 mb-4">
     <div class="col-lg-6">
       {% include "appeals/_breakdown_table.html" with table_id="by-category" title="По категориям" group_label="Категория" rows=report.by_category %}
     </div>
@@ -48,4 +48,25 @@
       {% include "appeals/_breakdown_table.html" with table_id="by-department" title="По отделам" group_label="Отдел" rows=report.by_department %}
     </div>
   </div>
+
+  <section class="card" aria-labelledby="stored-reports-heading">
+    <div class="card-body">
+      <h2 id="stored-reports-heading" class="h6 card-title mb-3">Ранее сформированные файлы</h2>
+      {% if stored_reports %}
+        <ul class="list-group list-group-flush">
+          {% for file in stored_reports %}
+            <li class="list-group-item d-flex flex-wrap justify-content-between align-items-center gap-2">
+              <span>
+                <a href="{% url 'appeals:appeal_report_file' file.name %}">{{ file.name }}</a>
+                <span class="text-secondary small ms-2">{{ file.format_label }}, {{ file.size|filesizeformat }}</span>
+              </span>
+              <span class="text-secondary small">{{ file.created_at|date:"d.m.Y H:i" }}</span>
+            </li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="text-secondary mb-0">Сохранённых файлов пока нет. Скачайте отчёт, чтобы сохранить его копию.</p>
+      {% endif %}
+    </div>
+  </section>
 {% endblock %}
