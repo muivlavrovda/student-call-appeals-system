@@ -2,7 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db.models import Q
-from django.http import HttpResponse
+from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django.urls import reverse
 from django.utils import timezone
@@ -33,6 +33,7 @@ from appeals.permissions import (
     TRANSFER_APPEAL_PERMISSION,
     VIEW_APPEAL_PERMISSION,
 )
+from appeals.report_storage import list_reports, open_report, save_report
 from appeals.reports import build_appeal_report
 from appeals.services import (
     add_appeal_comment,
@@ -409,14 +410,27 @@ class AppealReportMixin(LoginRequiredMixin, PermissionRequiredMixin):
         return build_appeal_report(visible_appeals_for(self.request.user))
 
 
+# Типы содержимого офисных форматов — общие для выгрузки и для скачивания
+# сохранённых на диск файлов.
+REPORT_CONTENT_TYPES = {
+    "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+}
+
+
 class AppealReportView(AppealReportMixin, TemplateView):
-    """Страница сводного отчёта по обращениям с кнопками выгрузки."""
+    """Страница сводного отчёта по обращениям с кнопками выгрузки.
+
+    Помимо текущей сводки, страница показывает список ранее сформированных
+    файлов отчётов, сохранённых в файловой системе.
+    """
 
     template_name = "appeals/appeal_report.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["report"] = self.get_report()
+        context["stored_reports"] = list_reports()
         context["breadcrumbs"] = [
             {"label": "Мои обращения", "url": reverse("appeals:appeal_list")},
             {"label": "Отчёты"},
@@ -425,29 +439,50 @@ class AppealReportView(AppealReportMixin, TemplateView):
 
 
 class AppealReportXlsxView(AppealReportMixin, View):
-    """Выгрузка сводного отчёта в файл .xlsx."""
+    """Выгрузка сводного отчёта в файл .xlsx с сохранением копии на диск."""
 
     def get(self, request):
-        content = report_to_xlsx(self.get_report(), generated_at=timezone.now())
+        generated_at = timezone.now()
+        content = report_to_xlsx(self.get_report(), generated_at=generated_at)
+        save_report(content, fmt="xlsx", generated_at=generated_at)
         return _file_response(
             content,
             filename="appeal-report.xlsx",
-            content_type=("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"),
+            content_type=REPORT_CONTENT_TYPES["xlsx"],
         )
 
 
 class AppealReportDocxView(AppealReportMixin, View):
-    """Выгрузка сводного отчёта в файл .docx."""
+    """Выгрузка сводного отчёта в файл .docx с сохранением копии на диск."""
 
     def get(self, request):
-        content = report_to_docx(self.get_report(), generated_at=timezone.now())
+        generated_at = timezone.now()
+        content = report_to_docx(self.get_report(), generated_at=generated_at)
+        save_report(content, fmt="docx", generated_at=generated_at)
         return _file_response(
             content,
             filename="appeal-report.docx",
-            content_type=(
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-            ),
+            content_type=REPORT_CONTENT_TYPES["docx"],
         )
+
+
+class AppealReportFileView(AppealReportMixin, View):
+    """Скачивание ранее сохранённого на диск файла отчёта.
+
+    Доступ закрыт тем же правом, что и сами отчёты: сохранённые файлы содержат
+    сводку по обращениям и не должны быть доступны без авторизации.
+    """
+
+    def get(self, request, name):
+        stored_file = open_report(name)
+        if stored_file is None:
+            raise Http404("Файл отчёта не найден.")
+
+        fmt = name.rsplit(".", 1)[-1].lower()
+        content_type = REPORT_CONTENT_TYPES.get(fmt, "application/octet-stream")
+        with stored_file:
+            content = stored_file.read()
+        return _file_response(content, filename=name, content_type=content_type)
 
 
 def _file_response(content: bytes, *, filename: str, content_type: str) -> HttpResponse:

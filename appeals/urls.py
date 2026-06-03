@@ -7,6 +7,7 @@ from appeals.views import (
     AppealDetailView,
     AppealListView,
     AppealReportDocxView,
+    AppealReportFileView,
     AppealReportView,
     AppealReportXlsxView,
     AppealStartProcessingView,
@@ -28,6 +29,11 @@ urlpatterns = [
         "appeals/reports/export.docx",
         AppealReportDocxView.as_view(),
         name="appeal_report_docx",
+    ),
+    path(
+        "appeals/reports/files/<str:name>",
+        AppealReportFileView.as_view(),
+        name="appeal_report_file",
     ),
     path("appeals/<int:pk>/", AppealDetailView.as_view(), name="appeal_detail"),
     path(
