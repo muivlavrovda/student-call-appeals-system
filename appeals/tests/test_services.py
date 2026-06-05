@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 from django.core.exceptions import ValidationError
+from django.utils.translation import gettext as _
 
 from appeals.models import Appeal, AppealComment, AppealHistoryEvent
 from appeals.services import (
@@ -47,7 +48,7 @@ def test_create_appeal_uses_category_department_due_date_and_history():
     event = AppealHistoryEvent.objects.get(appeal=appeal)
     assert event.actor == operator
     assert event.event_type == AppealHistoryEvent.EventType.CREATED
-    assert event.message == "Appeal created."
+    assert event.message == _("Appeal created.")
 
 
 @pytest.mark.django_db
@@ -156,7 +157,7 @@ def test_start_appeal_processing_sets_worker_started_at_status_and_history():
     event = AppealHistoryEvent.objects.get(appeal=appeal)
     assert event.actor == worker
     assert event.event_type == AppealHistoryEvent.EventType.ACCEPTED
-    assert event.message == "Appeal processing started."
+    assert event.message == _("Appeal processing started.")
 
 
 @pytest.mark.django_db
@@ -205,7 +206,7 @@ def test_add_appeal_comment_creates_comment_and_history():
     event = AppealHistoryEvent.objects.get(appeal=appeal)
     assert event.actor == author
     assert event.event_type == AppealHistoryEvent.EventType.COMMENT_ADDED
-    assert event.message == "Comment added."
+    assert event.message == _("Comment added.")
 
 
 @pytest.mark.django_db
@@ -282,7 +283,7 @@ def test_close_appeal_sets_result_closed_at_status_and_history():
     event = AppealHistoryEvent.objects.get(appeal=appeal)
     assert event.actor == worker
     assert event.event_type == AppealHistoryEvent.EventType.CLOSED
-    assert event.message == "Appeal closed."
+    assert event.message == _("Appeal closed.")
 
 
 @pytest.mark.django_db
@@ -367,7 +368,7 @@ def test_transfer_appeal_changes_department_and_history():
     event = AppealHistoryEvent.objects.get(appeal=appeal)
     assert event.actor == worker
     assert event.event_type == AppealHistoryEvent.EventType.DEPARTMENT_CHANGED
-    assert event.message == "Appeal department changed."
+    assert event.message == _("Appeal department changed.")
 
 
 @pytest.mark.django_db
@@ -399,8 +400,8 @@ def test_transfer_appeal_changes_category_and_uses_its_department():
         AppealHistoryEvent.EventType.DEPARTMENT_CHANGED,
     ]
     assert [event.message for event in events] == [
-        "Appeal category changed.",
-        "Appeal department changed.",
+        _("Appeal category changed."),
+        _("Appeal department changed."),
     ]
 
 
@@ -424,7 +425,7 @@ def test_transfer_appeal_can_change_category_without_department_change():
     event = AppealHistoryEvent.objects.get(appeal=appeal)
     assert event.actor == worker
     assert event.event_type == AppealHistoryEvent.EventType.CATEGORY_CHANGED
-    assert event.message == "Appeal category changed."
+    assert event.message == _("Appeal category changed.")
 
 
 @pytest.mark.django_db

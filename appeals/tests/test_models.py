@@ -4,6 +4,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.utils import timezone
+from django.utils.translation import gettext as _
 
 from appeals.models import Appeal, AppealCategory, AppealComment, AppealHistoryEvent, Department
 from appeals.tests.factories import (
@@ -159,7 +160,7 @@ def test_appeal_string_uses_pk_and_summary():
 def test_comment_string_references_appeal():
     comment = AppealCommentFactory()
 
-    assert str(comment) == f"Comment for appeal #{comment.appeal_id}"
+    assert str(comment) == _("Comment for appeal #{id}").format(id=comment.appeal_id)
 
 
 @pytest.mark.django_db
@@ -168,7 +169,7 @@ def test_history_event_uses_declared_event_type_choices():
     event = AppealHistoryEventFactory(event_type=AppealHistoryEvent.EventType.ACCEPTED)
 
     assert event.event_type == AppealHistoryEvent.EventType.ACCEPTED
-    assert str(event) == f"History event for appeal #{event.appeal_id}"
+    assert str(event) == _("History event for appeal #{id}").format(id=event.appeal_id)
 
 
 @pytest.mark.django_db

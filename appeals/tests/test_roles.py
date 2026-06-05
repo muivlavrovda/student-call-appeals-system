@@ -1,5 +1,6 @@
 import pytest
 from django.contrib.auth.models import Group, Permission
+from django.utils.translation import gettext as _
 
 from appeals.models import Appeal
 from appeals.roles import (
@@ -15,10 +16,10 @@ from appeals.roles import (
 @pytest.mark.unit
 def test_appeal_declares_workflow_permissions():
     assert set(Appeal._meta.permissions) == {
-        ("start_appeal_processing", "Can start appeal processing"),
-        ("comment_appeal", "Can comment appeal"),
-        ("close_appeal", "Can close appeal"),
-        ("transfer_appeal", "Can transfer appeal"),
+        ("start_appeal_processing", _("Can start appeal processing")),
+        ("comment_appeal", _("Can comment appeal")),
+        ("close_appeal", _("Can close appeal")),
+        ("transfer_appeal", _("Can transfer appeal")),
     }
 
 

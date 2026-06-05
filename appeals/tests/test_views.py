@@ -5,6 +5,7 @@ import pytest
 from django.contrib.auth.models import Group
 from django.urls import reverse
 from django.utils import timezone
+from django.utils.translation import gettext as _
 from openpyxl import load_workbook
 
 from appeals.models import Appeal, AppealComment, AppealHistoryEvent
@@ -518,7 +519,7 @@ def test_appeal_create_surfaces_service_validation_error(client):
 
     assert response.status_code == 200
     assert Appeal.objects.count() == 0
-    assert "inactive" in response.content.decode().lower()
+    assert _("Selected department is inactive.") in response.content.decode()
 
 
 # --- карточка обращения ------------------------------------------------------
@@ -1058,7 +1059,7 @@ def test_close_already_closed_appeal_surfaces_service_error(client):
     )
 
     assert response.status_code == 200
-    assert "already closed" in response.content.decode().lower()
+    assert _("Appeal is already closed.") in response.content.decode()
 
 
 # --- карточка обращения: доступность действий ---------------------------------
@@ -1288,7 +1289,7 @@ def test_transfer_rejects_unchanged_route(client):
     )
 
     assert response.status_code == 200
-    assert "unchanged" in response.content.decode().lower()
+    assert _("Appeal route is unchanged.") in response.content.decode()
 
 
 @pytest.mark.django_db
