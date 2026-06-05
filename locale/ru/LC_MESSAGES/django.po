@@ -1,0 +1,369 @@
+# Перевод служебных строк проекта на русский язык.
+# Журнал учёта телефонных обращений обучающихся.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: 1.0\n"
+"Report-Msgid-Bugs-To: \n"
+"Last-Translator: \n"
+"Language-Team: Russian\n"
+"Language: ru\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n%10==1 && n%100!=11 ? 0 : n%10>=2 && "
+"n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || "
+"(n%100>=11 && n%100<=14)? 2 : 3);\n"
+
+#: appeals/admin.py:50 appeals/admin.py:101 appeals/admin.py:243
+msgid "Dates"
+msgstr "Даты"
+
+#: appeals/admin.py:209
+msgid "Student"
+msgstr "Обучающийся"
+
+#: appeals/admin.py:218 appeals/models.py:305 appeals/models.py:331
+#: appeals/models.py:375
+msgid "Appeal"
+msgstr "Обращение"
+
+#: appeals/admin.py:232
+msgid "Workflow"
+msgstr "Обработка"
+
+#: appeals/admin.py:286
+msgid "Overdue"
+msgstr "Просрочено"
+
+#: appeals/apps.py:7 appeals/models.py:306
+msgid "Appeals"
+msgstr "Обращения"
+
+#: appeals/models.py:43
+msgid "Enter a valid Russian phone number."
+msgstr "Введите корректный российский номер телефона."
+
+#: appeals/models.py:66 appeals/models.py:133 public/models.py:17
+msgid "Name"
+msgstr "Наименование"
+
+#: appeals/models.py:71 appeals/models.py:138
+msgid "Name key"
+msgstr "Ключ наименования"
+
+#: appeals/models.py:78 appeals/models.py:160 appeals/models.py:233
+msgid "Description"
+msgstr "Описание"
+
+#: appeals/models.py:84
+msgid "Members"
+msgstr "Сотрудники"
+
+#: appeals/models.py:90 appeals/models.py:165
+msgid "Is active"
+msgstr "Активен"
+
+#: appeals/models.py:95 appeals/models.py:170 appeals/models.py:283
+#: appeals/models.py:348 appeals/models.py:401 public/models.py:35
+msgid "Created at"
+msgstr "Создано"
+
+#: appeals/models.py:100 appeals/models.py:175 appeals/models.py:288
+msgid "Updated at"
+msgstr "Изменено"
+
+#: appeals/models.py:105 appeals/models.py:146 appeals/models.py:245
+msgid "Department"
+msgstr "Отдел"
+
+#: appeals/models.py:106
+msgid "Departments"
+msgstr "Отделы"
+
+#: appeals/models.py:112
+msgid "Department with this name already exists."
+msgstr "Отдел с таким наименованием уже существует."
+
+#: appeals/models.py:152
+msgid "Default processing days"
+msgstr "Срок обработки по умолчанию, дней"
+
+#: appeals/models.py:180
+msgid "Appeal category"
+msgstr "Категория обращения"
+
+#: appeals/models.py:181
+msgid "Appeal categories"
+msgstr "Категории обращений"
+
+#: appeals/models.py:187
+msgid "Appeal category with this name already exists."
+msgstr "Категория обращения с таким наименованием уже существует."
+
+#: appeals/models.py:210
+msgid "New"
+msgstr "Новое"
+
+#: appeals/models.py:211
+msgid "In progress"
+msgstr "В работе"
+
+#: appeals/models.py:212 appeals/models.py:371
+msgid "Closed"
+msgstr "Закрыто"
+
+#: appeals/models.py:215
+msgid "Student full name"
+msgstr "ФИО обучающегося"
+
+#: appeals/models.py:220
+msgid "Student phone"
+msgstr "Телефон обучающегося"
+
+#: appeals/models.py:228
+msgid "Summary"
+msgstr "Тема обращения"
+
+#: appeals/models.py:238
+msgid "Category"
+msgstr "Категория"
+
+#: appeals/models.py:251
+msgid "Status"
+msgstr "Статус"
+
+#: appeals/models.py:258
+msgid "Due at"
+msgstr "Срок обработки"
+
+#: appeals/models.py:262
+msgid "Result"
+msgstr "Результат обработки"
+
+#: appeals/models.py:268
+msgid "Accepted by"
+msgstr "Принял в работу"
+
+#: appeals/models.py:277
+msgid "Created by"
+msgstr "Автор обращения"
+
+#: appeals/models.py:293
+msgid "Accepted at"
+msgstr "Принято в работу"
+
+#: appeals/models.py:299
+msgid "Closed at"
+msgstr "Закрыто (дата)"
+
+#: appeals/models.py:309
+msgid "Can start appeal processing"
+msgstr "Может брать обращение в работу"
+
+#: appeals/models.py:310
+msgid "Can comment appeal"
+msgstr "Может комментировать обращение"
+
+#: appeals/models.py:311
+msgid "Can close appeal"
+msgstr "Может закрывать обращение"
+
+#: appeals/models.py:312
+msgid "Can transfer appeal"
+msgstr "Может переносить обращение"
+
+#: appeals/models.py:338
+msgid "Author"
+msgstr "Автор"
+
+#: appeals/models.py:344
+msgid "Text"
+msgstr "Текст"
+
+#: appeals/models.py:353
+msgid "Appeal comment"
+msgstr "Комментарий к обращению"
+
+#: appeals/models.py:354
+msgid "Appeal comments"
+msgstr "Комментарии к обращениям"
+
+#: appeals/models.py:358
+#, python-brace-format
+msgid "Comment for appeal #{id}"
+msgstr "Комментарий к обращению №{id}"
+
+#: appeals/models.py:363
+msgid "Created"
+msgstr "Создано"
+
+#: appeals/models.py:364
+msgid "Category changed"
+msgstr "Изменена категория"
+
+#: appeals/models.py:365
+msgid "Department changed"
+msgstr "Изменён отдел"
+
+#: appeals/models.py:366
+msgid "Due date changed"
+msgstr "Изменён срок обработки"
+
+#: appeals/models.py:367
+msgid "Accepted"
+msgstr "Принято в работу"
+
+#: appeals/models.py:368
+msgid "Status changed"
+msgstr "Изменён статус"
+
+#: appeals/models.py:369
+msgid "Comment added"
+msgstr "Добавлен комментарий"
+
+#: appeals/models.py:370
+msgid "Result updated"
+msgstr "Обновлён результат"
+
+#: appeals/models.py:382
+msgid "Actor"
+msgstr "Исполнитель"
+
+#: appeals/models.py:390
+msgid "Event type"
+msgstr "Тип события"
+
+#: appeals/models.py:396 public/models.py:26
+msgid "Message"
+msgstr "Сообщение"
+
+#: appeals/models.py:406
+msgid "Appeal history event"
+msgstr "Событие истории обращения"
+
+#: appeals/models.py:407
+msgid "Appeal history events"
+msgstr "События истории обращений"
+
+#: appeals/models.py:411
+#, python-brace-format
+msgid "History event for appeal #{id}"
+msgstr "Событие истории обращения №{id}"
+
+#: appeals/services.py:39 appeals/services.py:234
+msgid "Selected appeal category is inactive."
+msgstr "Выбранная категория обращения неактивна."
+
+#: appeals/services.py:41 appeals/services.py:236
+msgid "Selected department is inactive."
+msgstr "Выбранный отдел неактивен."
+
+#: appeals/services.py:64
+msgid "Appeal created."
+msgstr "Обращение создано."
+
+#: appeals/services.py:87
+msgid "Only new appeals can start processing."
+msgstr "В работу можно взять только новое обращение."
+
+#: appeals/services.py:107
+msgid "Appeal processing started."
+msgstr "Обращение взято в работу."
+
+#: appeals/services.py:129
+msgid "Closed appeals cannot be commented."
+msgstr "Нельзя комментировать закрытое обращение."
+
+#: appeals/services.py:144
+msgid "Comment added."
+msgstr "Комментарий добавлен."
+
+#: appeals/services.py:166
+msgid "Appeal result is required to close appeal."
+msgstr "Для закрытия обращения нужно указать результат обработки."
+
+#: appeals/services.py:175
+msgid "Appeal is already closed."
+msgstr "Обращение уже закрыто."
+
+#: appeals/services.py:195
+msgid "Appeal closed."
+msgstr "Обращение закрыто."
+
+#: appeals/services.py:216
+msgid "Select category or department to transfer appeal."
+msgstr "Для переноса обращения укажите категорию или отдел."
+
+#: appeals/services.py:228
+msgid "Closed appeals cannot be transferred."
+msgstr "Нельзя переносить закрытое обращение."
+
+#: appeals/services.py:245
+msgid "Appeal route is unchanged."
+msgstr "Маршрут обращения не изменился."
+
+#: appeals/services.py:265
+msgid "Appeal category changed."
+msgstr "Категория обращения изменена."
+
+#: appeals/services.py:272
+msgid "Appeal department changed."
+msgstr "Отдел обращения изменён."
+
+#: core/urls.py:9 core/urls.py:11
+msgid "Appeals administration"
+msgstr "Администрирование журнала обращений"
+
+#: core/urls.py:10
+msgid "Appeals admin"
+msgstr "Журнал обращений"
+
+#: public/admin.py:42
+msgid "Processing"
+msgstr "Обработка"
+
+#: public/apps.py:7
+msgid "Public site"
+msgstr "Публичный сайт"
+
+#: public/models.py:22 users/models.py:14
+msgid "Email"
+msgstr "Электронная почта"
+
+#: public/models.py:30
+msgid "Is processed"
+msgstr "Обработано"
+
+#: public/models.py:40
+msgid "Feedback message"
+msgstr "Сообщение обратной связи"
+
+#: public/models.py:41
+msgid "Feedback messages"
+msgstr "Сообщения обратной связи"
+
+#: public/models.py:45
+#, python-brace-format
+msgid "Feedback from {name}"
+msgstr "Обратная связь от {name}"
+
+#: users/admin.py:21
+msgid "Personal info"
+msgstr "Личные данные"
+
+#: users/admin.py:30
+msgid "Permissions"
+msgstr "Права доступа"
+
+#: users/admin.py:42
+msgid "Important dates"
+msgstr "Важные даты"
+
+#: users/apps.py:7 users/models.py:25
+msgid "Users"
+msgstr "Пользователи"
+
+#: users/models.py:24
+msgid "User"
+msgstr "Пользователь"

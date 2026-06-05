@@ -94,7 +94,9 @@ AUTH_PASSWORD_VALIDATORS = [
 USE_TZ = True
 USE_I18N = True
 TIME_ZONE = getenv("DJ_TIME_ZONE", "UTC")
-LANGUAGE_CODE = getenv("DJ_LANG_CODE", "en-us")
+LANGUAGE_CODE = getenv("DJ_LANG_CODE", "ru")
+
+LOCALE_PATHS = [BASE_DIR / "locale"]
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
