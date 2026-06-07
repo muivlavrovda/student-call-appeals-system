@@ -16,6 +16,7 @@ from appeals.access import (
     can_view_appeal,
     visible_appeals_for,
 )
+from appeals.classifier import ClassifyStatus, ai_enabled, classify_appeal
 from appeals.exports import report_to_docx, report_to_xlsx
 from appeals.forms import (
     AppealCloseForm,
@@ -125,13 +126,44 @@ class AppealCreateView(LoginRequiredMixin, PermissionRequiredMixin, FormView):
     template_name = "appeals/appeal_form.html"
     form_class = AppealCreateForm
 
+    # Подсказка ИИ, показанная на текущей отрисовке (этап «предпросмотр»).
+    ai_result = None
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
         context["breadcrumbs"] = [
             {"label": "Мои обращения", "url": reverse("appeals:appeal_list")},
             {"label": "Новое обращение"},
         ]
+        context["ai_enabled"] = ai_enabled()
+        context["ai_result"] = self.ai_result
+        # На этапе предпросмотра поля категории и темы уже показываем для проверки.
+        context["show_route_fields"] = not ai_enabled() or self.ai_result is not None
         return context
+
+    def post(self, request, *args, **kwargs):
+        # При включённом ИИ кнопка «Подобрать» сначала классифицирует обращение
+        # и показывает предпросмотр; сохранение идёт обычным путём формы.
+        if request.POST.get("action") == "classify" and ai_enabled():
+            return self._handle_classify(request)
+        return super().post(request, *args, **kwargs)
+
+    def _handle_classify(self, request):
+        form = self.get_form()
+        description = (request.POST.get("description") or "").strip()
+        if not description:
+            form.add_error("description", "Опишите суть обращения для подбора категории.")
+            return self.render_to_response(self.get_context_data(form=form))
+
+        result = classify_appeal(description)
+        self.ai_result = result
+        if result.status is ClassifyStatus.OK:
+            # Заполняем подобранные поля, оставляя их доступными для правки.
+            form.data = form.data.copy()
+            form.data["category"] = str(result.category.pk)
+            if result.summary:
+                form.data["summary"] = result.summary
+        return self.render_to_response(self.get_context_data(form=form))
 
     def form_valid(self, form):
         data = form.cleaned_data

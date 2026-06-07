@@ -1,5 +1,6 @@
 from datetime import timedelta
 from io import BytesIO
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth.models import Group
@@ -8,6 +9,7 @@ from django.utils import timezone
 from django.utils.translation import gettext as _
 from openpyxl import load_workbook
 
+from appeals.classifier import ClassifyResult, ClassifyStatus
 from appeals.models import Appeal, AppealComment, AppealHistoryEvent
 from appeals.roles import ADMIN_GROUP, OPERATOR_GROUP, RESPONSIBLE_GROUP, sync_access_groups
 from appeals.tests.factories import (
@@ -520,6 +522,165 @@ def test_appeal_create_surfaces_service_validation_error(client):
     assert response.status_code == 200
     assert Appeal.objects.count() == 0
     assert _("Selected department is inactive.") in response.content.decode()
+
+
+# --- создание обращения с подбором категории через ИИ ------------------------
+
+
+@pytest.fixture
+def ai_on(settings):
+    from core.ai import AIConfig
+
+    settings.AI_CONFIG = AIConfig(
+        model="deepseek-v4-flash",
+        base_url="https://api.deepseek.com",
+        api_key="sk-test",
+    )
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_create_hides_classify_button_when_ai_disabled(client):
+    # По умолчанию ИИ выключен: форма прежняя, кнопки подбора нет, поля видны.
+    operator = _user_in_group(OPERATOR_GROUP)
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(CREATE_URL_NAME))
+    body = response.content.decode()
+
+    assert "Подобрать категорию" not in body
+    assert 'name="category"' in body
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_create_shows_classify_button_and_hides_route_fields(client, ai_on):
+    # При включённом ИИ на первом этапе показываем подбор, а категорию/тему прячем.
+    operator = _user_in_group(OPERATOR_GROUP)
+    client.login(email=operator.email, password="secret")
+
+    response = client.get(reverse(CREATE_URL_NAME))
+    body = response.content.decode()
+
+    assert "Подобрать категорию" in body
+    assert 'name="category"' not in body
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_appeal_classify_shows_preview_and_prefills(client, ai_on):
+    operator = _user_in_group(OPERATOR_GROUP)
+    category = AppealCategoryFactory()
+    client.login(email=operator.email, password="secret")
+    result = ClassifyResult(
+        status=ClassifyStatus.OK,
+        category=category,
+        summary="Подобранная тема",
+        reason="Подходит по описанию.",
+    )
+
+    with patch("appeals.views.classify_appeal", return_value=result) as mocked:
+        response = client.post(
+            reverse(CREATE_URL_NAME),
+            data={
+                "action": "classify",
+                "student_full_name": "Иванов Иван",
+                "student_phone": "+7 900 123-45-67",
+                "description": "Нужна справка об обучении",
+            },
+        )
+    body = response.content.decode()
+
+    mocked.assert_called_once_with("Нужна справка об обучении")
+    assert response.status_code == 200
+    assert Appeal.objects.count() == 0  # подбор ничего не сохраняет
+    assert "Подходит по описанию." in body
+    assert "Подобранная тема" in body
+    assert 'name="category"' in body  # поля маршрута теперь видны для проверки
+    assert "Подтвердить и сохранить" in body
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_appeal_classify_undecided_shows_notice(client, ai_on):
+    operator = _user_in_group(OPERATOR_GROUP)
+    AppealCategoryFactory()
+    client.login(email=operator.email, password="secret")
+    result = ClassifyResult(status=ClassifyStatus.UNDECIDED, reason="Не относится ни к чему.")
+
+    with patch("appeals.views.classify_appeal", return_value=result):
+        response = client.post(
+            reverse(CREATE_URL_NAME),
+            data={
+                "action": "classify",
+                "student_full_name": "Иванов Иван",
+                "student_phone": "+7 900 123-45-67",
+                "description": "во сколько обед",
+            },
+        )
+    body = response.content.decode()
+
+    assert "Не удалось определить категорию" in body
+    assert 'name="category"' in body  # можно выбрать вручную
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_appeal_classify_unavailable_shows_calm_notice(client, ai_on):
+    operator = _user_in_group(OPERATOR_GROUP)
+    AppealCategoryFactory()
+    client.login(email=operator.email, password="secret")
+    result = ClassifyResult(status=ClassifyStatus.UNAVAILABLE)
+
+    with patch("appeals.views.classify_appeal", return_value=result):
+        response = client.post(
+            reverse(CREATE_URL_NAME),
+            data={
+                "action": "classify",
+                "student_full_name": "Иванов Иван",
+                "student_phone": "+7 900 123-45-67",
+                "description": "нужна справка",
+            },
+        )
+    body = response.content.decode()
+
+    assert "ИИ-подбор сейчас недоступен" in body
+    assert 'name="category"' in body
+
+
+@pytest.mark.django_db
+@pytest.mark.functional
+def test_appeal_classify_requires_description(client, ai_on):
+    operator = _user_in_group(OPERATOR_GROUP)
+    client.login(email=operator.email, password="secret")
+
+    with patch("appeals.views.classify_appeal") as mocked:
+        response = client.post(
+            reverse(CREATE_URL_NAME),
+            data={"action": "classify", "student_full_name": "Иванов", "description": ""},
+        )
+
+    mocked.assert_not_called()  # без описания модель не дёргаем
+    assert response.status_code == 200
+    assert "Опишите суть обращения для подбора категории." in response.content.decode()
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_appeal_save_after_classify_persists(client, ai_on):
+    # После подбора оператор подтверждает — обращение сохраняется обычным путём.
+    operator = _user_in_group(OPERATOR_GROUP)
+    category = AppealCategoryFactory()
+    client.login(email=operator.email, password="secret")
+
+    payload = _valid_appeal_payload(category)
+    payload["action"] = "save"
+    response = client.post(reverse(CREATE_URL_NAME), data=payload)
+
+    assert response.status_code == 302
+    appeal = Appeal.objects.get()
+    assert appeal.category == category
+    assert appeal.created_by == operator
 
 
 # --- карточка обращения ------------------------------------------------------

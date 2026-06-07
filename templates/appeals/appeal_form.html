@@ -20,15 +20,56 @@
 
         {% include "_field.html" with field=form.student_full_name %}
         {% include "_field.html" with field=form.student_phone %}
-        {% include "_field.html" with field=form.summary %}
-        {% include "_field.html" with field=form.category %}
-        {% include "_field.html" with field=form.department %}
         {% include "_field.html" with field=form.description %}
 
-        <div class="d-flex gap-2">
-          <button type="submit" class="btn btn-primary">Зарегистрировать</button>
-          <a href="{% url 'appeals:appeal_list' %}" class="btn btn-outline-secondary">Отмена</a>
-        </div>
+        {% if ai_enabled %}
+          <div class="mb-3">
+            <button type="submit" name="action" value="classify" class="btn btn-outline-primary">
+              Подобрать категорию
+            </button>
+            <div class="form-text">
+              По описанию звонка система предложит категорию и тему обращения.
+            </div>
+          </div>
+
+          {% if ai_result %}
+            {% if ai_result.status.value == "ok" %}
+              <div class="alert alert-success" role="alert">
+                <div class="fw-semibold mb-1">Категория подобрана</div>
+                <div>{{ ai_result.reason }}</div>
+                <div class="form-text mt-1">Проверьте предложенные значения ниже и при необходимости измените их.</div>
+              </div>
+            {% elif ai_result.status.value == "undecided" %}
+              <div class="alert alert-warning" role="alert">
+                <div class="fw-semibold mb-1">Не удалось определить категорию</div>
+                <div>{{ ai_result.reason }}</div>
+                <div class="form-text mt-1">Выберите категорию вручную.</div>
+              </div>
+            {% else %}
+              <div class="alert alert-secondary" role="alert">
+                <div class="fw-semibold mb-1">ИИ-подбор сейчас недоступен</div>
+                <div>Заполните категорию обращения вручную.</div>
+              </div>
+            {% endif %}
+          {% endif %}
+        {% endif %}
+
+        {% if show_route_fields %}
+          {% include "_field.html" with field=form.summary %}
+          {% include "_field.html" with field=form.category %}
+          {% include "_field.html" with field=form.department %}
+
+          <div class="d-flex gap-2">
+            <button type="submit" name="action" value="save" class="btn btn-primary">
+              {% if ai_enabled %}Подтвердить и сохранить{% else %}Зарегистрировать{% endif %}
+            </button>
+            <a href="{% url 'appeals:appeal_list' %}" class="btn btn-outline-secondary">Отмена</a>
+          </div>
+        {% else %}
+          <div class="d-flex gap-2">
+            <a href="{% url 'appeals:appeal_list' %}" class="btn btn-outline-secondary">Отмена</a>
+          </div>
+        {% endif %}
       </form>
     </div>
   </div>
