@@ -45,6 +45,18 @@ def test_classify_returns_disabled_when_no_config(settings):
 
 @pytest.mark.django_db
 @pytest.mark.integration
+def test_classify_undecided_without_categories_and_skips_api(ai_config):
+    # Нет активных категорий — выбирать не из чего, модель не дёргаем.
+    with patch.object(classifier, "_call_model") as mocked:
+        result = classify_appeal("нужна справка")
+
+    mocked.assert_not_called()
+    assert result.status is ClassifyStatus.UNDECIDED
+    assert AILog.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
 def test_classify_ok_resolves_category_and_logs(ai_config):
     category = AppealCategoryFactory()
     suggestion = Suggestion(

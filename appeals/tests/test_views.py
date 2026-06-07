@@ -683,6 +683,54 @@ def test_appeal_save_after_classify_persists(client, ai_on):
     assert appeal.created_by == operator
 
 
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_appeal_reclassify_is_independent_per_request(client, ai_on):
+    # Повторный подбор не накапливает состояние: каждый запрос самостоятелен.
+    operator = _user_in_group(OPERATOR_GROUP)
+    first = AppealCategoryFactory(name="Первая")
+    second = AppealCategoryFactory(name="Вторая")
+    client.login(email=operator.email, password="secret")
+
+    def _classify(category):
+        return ClassifyResult(status=ClassifyStatus.OK, category=category, summary="т", reason="r")
+
+    with patch("appeals.views.classify_appeal", side_effect=[_classify(first), _classify(second)]):
+        client.post(
+            reverse(CREATE_URL_NAME),
+            data={"action": "classify", "description": "первое описание"},
+        )
+        response = client.post(
+            reverse(CREATE_URL_NAME),
+            data={"action": "classify", "description": "второе описание"},
+        )
+
+    # Второй подбор показывает вторую категорию, без следов первого.
+    selected = response.context["form"]["category"].value()
+    assert str(selected) == str(second.pk)
+    assert Appeal.objects.count() == 0
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_appeal_save_rejects_category_deactivated_after_classify(client, ai_on):
+    # Категорию отключили между подбором и сохранением — сервис не даёт сохранить.
+    operator = _user_in_group(OPERATOR_GROUP)
+    category = AppealCategoryFactory()
+    client.login(email=operator.email, password="secret")
+
+    category.is_active = False
+    category.save()
+
+    payload = _valid_appeal_payload(category)
+    payload["action"] = "save"
+    response = client.post(reverse(CREATE_URL_NAME), data=payload)
+
+    # Неактивная категория уже не в списке формы — выбор отклоняется как недопустимый.
+    assert response.status_code == 200
+    assert Appeal.objects.count() == 0
+
+
 # --- карточка обращения ------------------------------------------------------
 
 

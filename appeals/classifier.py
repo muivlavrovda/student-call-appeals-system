@@ -89,6 +89,10 @@ def classify_appeal(description: str) -> ClassifyResult:
         return ClassifyResult(status=ClassifyStatus.DISABLED)
 
     categories = list(AppealCategory.objects.filter(is_active=True).select_related("department"))
+    if not categories:
+        # Выбирать не из чего — не тратим вызов модели, отдаём «не определено».
+        return ClassifyResult(status=ClassifyStatus.UNDECIDED)
+
     language = get_language() or settings.LANGUAGE_CODE
     system_prompt = _build_system_prompt(categories, language=language)
     user_prompt = _build_user_prompt(description)
