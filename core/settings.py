@@ -3,6 +3,7 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
+from core.ai import parse_ai_url
 from core.logging import setup_logging
 
 load_dotenv(".env.defaults")
@@ -97,6 +98,10 @@ TIME_ZONE = getenv("DJ_TIME_ZONE", "UTC")
 LANGUAGE_CODE = getenv("DJ_LANG_CODE", "ru")
 
 LOCALE_PATHS = [BASE_DIR / "locale"]
+
+# Подключение к ИИ-модели одной строкой "model@base_url#key" (см. core/ai.py).
+# Не задано или пусто — ИИ-функции выключены, форма работает с ручным выбором.
+AI_CONFIG = parse_ai_url(getenv("AI_URL"))
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
