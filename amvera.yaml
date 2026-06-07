@@ -1,0 +1,13 @@
+meta:
+  environment: python
+  toolchain:
+    name: pip
+    version: 3.14
+run:
+  # Постоянное хранилище монтируется в /data — туда кладём файл базы (DJ_DB_PATH),
+  # чтобы данные переживали пересборку проекта.
+  persistenceMount: /data
+  # При старте: переносим базу в /data при первом запуске, применяем миграции,
+  # собираем статику и поднимаем сервер gunicorn на порту 80.
+  command: python manage.py ensure_db_seed && python manage.py migrate --noinput && python manage.py collectstatic --noinput && gunicorn core.wsgi:application --bind 0.0.0.0:80
+  containerPort: 80
