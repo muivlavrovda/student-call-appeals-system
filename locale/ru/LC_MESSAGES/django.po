@@ -15,26 +15,38 @@ msgstr ""
 "n%10<=4 && (n%100<12 || n%100>14) ? 1 : n%10==0 || (n%10>=5 && n%10<=9) || "
 "(n%100>=11 && n%100<=14)? 2 : 3);\n"
 
-#: appeals/admin.py:50 appeals/admin.py:101 appeals/admin.py:243
+#: appeals/admin.py:51 appeals/admin.py:102 appeals/admin.py:244
 msgid "Dates"
 msgstr "Даты"
 
-#: appeals/admin.py:209
+#: appeals/admin.py:210
 msgid "Student"
 msgstr "Обучающийся"
 
-#: appeals/admin.py:218 appeals/models.py:305 appeals/models.py:331
+#: appeals/admin.py:219 appeals/models.py:305 appeals/models.py:331
 #: appeals/models.py:375
 msgid "Appeal"
 msgstr "Обращение"
 
-#: appeals/admin.py:232
+#: appeals/admin.py:233
 msgid "Workflow"
 msgstr "Обработка"
 
-#: appeals/admin.py:286
+#: appeals/admin.py:287
 msgid "Overdue"
 msgstr "Просрочено"
+
+#: appeals/admin.py:416
+msgid "Tokens and cost"
+msgstr "Токены и стоимость"
+
+#: appeals/admin.py:429
+msgid "Debug"
+msgstr "Отладка"
+
+#: appeals/admin.py:441
+msgid "Cache hit"
+msgstr "Из кэша"
 
 #: appeals/apps.py:7 appeals/models.py:306
 msgid "Appeals"
@@ -65,7 +77,8 @@ msgid "Is active"
 msgstr "Активен"
 
 #: appeals/models.py:95 appeals/models.py:170 appeals/models.py:283
-#: appeals/models.py:348 appeals/models.py:401 public/models.py:35
+#: appeals/models.py:348 appeals/models.py:401 appeals/models.py:428
+#: public/models.py:35
 msgid "Created at"
 msgstr "Создано"
 
@@ -129,7 +142,7 @@ msgstr "Тема обращения"
 msgid "Category"
 msgstr "Категория"
 
-#: appeals/models.py:251
+#: appeals/models.py:251 appeals/models.py:438
 msgid "Status"
 msgstr "Статус"
 
@@ -157,19 +170,19 @@ msgstr "Принято в работу"
 msgid "Closed at"
 msgstr "Закрыто (дата)"
 
-#: appeals/models.py:309
+#: appeals/models.py:309 appeals/tests/test_roles.py:19
 msgid "Can start appeal processing"
 msgstr "Может брать обращение в работу"
 
-#: appeals/models.py:310
+#: appeals/models.py:310 appeals/tests/test_roles.py:20
 msgid "Can comment appeal"
 msgstr "Может комментировать обращение"
 
-#: appeals/models.py:311
+#: appeals/models.py:311 appeals/tests/test_roles.py:21
 msgid "Can close appeal"
 msgstr "Может закрывать обращение"
 
-#: appeals/models.py:312
+#: appeals/models.py:312 appeals/tests/test_roles.py:22
 msgid "Can transfer appeal"
 msgstr "Может переносить обращение"
 
@@ -189,7 +202,7 @@ msgstr "Комментарий к обращению"
 msgid "Appeal comments"
 msgstr "Комментарии к обращениям"
 
-#: appeals/models.py:358
+#: appeals/models.py:358 appeals/tests/test_models.py:163
 #, python-brace-format
 msgid "Comment for appeal #{id}"
 msgstr "Комментарий к обращению №{id}"
@@ -246,20 +259,93 @@ msgstr "Событие истории обращения"
 msgid "Appeal history events"
 msgstr "События истории обращений"
 
-#: appeals/models.py:411
+#: appeals/models.py:411 appeals/tests/test_models.py:172
 #, python-brace-format
 msgid "History event for appeal #{id}"
 msgstr "Событие истории обращения №{id}"
+
+#: appeals/models.py:423
+msgid "Classified"
+msgstr "Определено"
+
+#: appeals/models.py:424
+msgid "Could not decide"
+msgstr "Не удалось определить"
+
+#: appeals/models.py:425 appeals/models.py:501
+msgid "Error"
+msgstr "Ошибка"
+
+#: appeals/models.py:433
+msgid "Model"
+msgstr "Модель"
+
+#: appeals/models.py:445
+msgid "Call description"
+msgstr "Описание звонка"
+
+#: appeals/models.py:451
+msgid "Chosen category"
+msgstr "Выбранная категория"
+
+#: appeals/models.py:459
+msgid "Suggested summary"
+msgstr "Предложенная тема"
+
+#: appeals/models.py:465
+msgid "Reason"
+msgstr "Обоснование"
+
+#: appeals/models.py:470
+msgid "Prompt tokens"
+msgstr "Токены запроса"
+
+#: appeals/models.py:471
+msgid "Cache hit tokens"
+msgstr "Токены из кэша"
+
+#: appeals/models.py:472
+msgid "Cache miss tokens"
+msgstr "Токены мимо кэша"
+
+#: appeals/models.py:473
+msgid "Completion tokens"
+msgstr "Токены ответа"
+
+#: appeals/models.py:476
+msgid "Cost, USD"
+msgstr "Стоимость, USD"
+
+#: appeals/models.py:483
+msgid "Latency, ms"
+msgstr "Задержка, мс"
+
+#: appeals/models.py:489
+msgid "Raw request"
+msgstr "Сырой запрос"
+
+#: appeals/models.py:495
+msgid "Raw response"
+msgstr "Сырой ответ"
+
+#: appeals/models.py:506
+msgid "AI call log"
+msgstr "Журнал вызова ИИ"
+
+#: appeals/models.py:507
+msgid "AI call logs"
+msgstr "Журнал вызовов ИИ"
 
 #: appeals/services.py:39 appeals/services.py:234
 msgid "Selected appeal category is inactive."
 msgstr "Выбранная категория обращения неактивна."
 
 #: appeals/services.py:41 appeals/services.py:236
+#: appeals/tests/test_views.py:522
 msgid "Selected department is inactive."
 msgstr "Выбранный отдел неактивен."
 
-#: appeals/services.py:64
+#: appeals/services.py:64 appeals/tests/test_services.py:51
 msgid "Appeal created."
 msgstr "Обращение создано."
 
@@ -267,7 +353,7 @@ msgstr "Обращение создано."
 msgid "Only new appeals can start processing."
 msgstr "В работу можно взять только новое обращение."
 
-#: appeals/services.py:107
+#: appeals/services.py:107 appeals/tests/test_services.py:160
 msgid "Appeal processing started."
 msgstr "Обращение взято в работу."
 
@@ -275,7 +361,7 @@ msgstr "Обращение взято в работу."
 msgid "Closed appeals cannot be commented."
 msgstr "Нельзя комментировать закрытое обращение."
 
-#: appeals/services.py:144
+#: appeals/services.py:144 appeals/tests/test_services.py:209
 msgid "Comment added."
 msgstr "Комментарий добавлен."
 
@@ -283,11 +369,11 @@ msgstr "Комментарий добавлен."
 msgid "Appeal result is required to close appeal."
 msgstr "Для закрытия обращения нужно указать результат обработки."
 
-#: appeals/services.py:175
+#: appeals/services.py:175 appeals/tests/test_views.py:1062
 msgid "Appeal is already closed."
 msgstr "Обращение уже закрыто."
 
-#: appeals/services.py:195
+#: appeals/services.py:195 appeals/tests/test_services.py:286
 msgid "Appeal closed."
 msgstr "Обращение закрыто."
 
@@ -299,15 +385,17 @@ msgstr "Для переноса обращения укажите категор
 msgid "Closed appeals cannot be transferred."
 msgstr "Нельзя переносить закрытое обращение."
 
-#: appeals/services.py:245
+#: appeals/services.py:245 appeals/tests/test_views.py:1292
 msgid "Appeal route is unchanged."
 msgstr "Маршрут обращения не изменился."
 
-#: appeals/services.py:265
+#: appeals/services.py:265 appeals/tests/test_services.py:403
+#: appeals/tests/test_services.py:428
 msgid "Appeal category changed."
 msgstr "Категория обращения изменена."
 
-#: appeals/services.py:272
+#: appeals/services.py:272 appeals/tests/test_services.py:371
+#: appeals/tests/test_services.py:404
 msgid "Appeal department changed."
 msgstr "Отдел обращения изменён."
 

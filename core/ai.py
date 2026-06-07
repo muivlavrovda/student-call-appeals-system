@@ -14,6 +14,7 @@
 """
 
 from dataclasses import dataclass
+from decimal import Decimal
 
 
 @dataclass(frozen=True)
@@ -23,6 +24,57 @@ class AIConfig:
     model: str
     base_url: str
     api_key: str
+
+
+@dataclass(frozen=True)
+class ModelPricing:
+    """Цены модели за 1 млн токенов: кэш-попадание, кэш-промах, ответ."""
+
+    cache_hit: Decimal
+    cache_miss: Decimal
+    output: Decimal
+
+
+# Цены в долларах за 1 млн токенов (официальный прайс DeepSeek). Если модель
+# неизвестна, стоимость не считаем — токены всё равно сохраняются в журнале.
+MODEL_PRICING: dict[str, ModelPricing] = {
+    "deepseek-v4-flash": ModelPricing(
+        cache_hit=Decimal("0.0028"),
+        cache_miss=Decimal("0.14"),
+        output=Decimal("0.28"),
+    ),
+    "deepseek-v4-pro": ModelPricing(
+        cache_hit=Decimal("0.003625"),
+        cache_miss=Decimal("0.435"),
+        output=Decimal("0.87"),
+    ),
+}
+
+_PER_MILLION = Decimal(1_000_000)
+
+
+def compute_cost(
+    model: str,
+    *,
+    cache_hit_tokens: int,
+    cache_miss_tokens: int,
+    completion_tokens: int,
+) -> Decimal:
+    """Считает стоимость вызова по тарифам модели с учётом кэширования префикса.
+
+    Для неизвестной модели возвращает 0: цены меняются и заведены не для всех
+    моделей, но это не должно мешать сохранить журнал вызова.
+    """
+    pricing = MODEL_PRICING.get(model)
+    if pricing is None:
+        return Decimal(0)
+
+    cost = (
+        pricing.cache_hit * cache_hit_tokens
+        + pricing.cache_miss * cache_miss_tokens
+        + pricing.output * completion_tokens
+    ) / _PER_MILLION
+    return cost.quantize(Decimal("0.00000001"))
 
 
 def parse_ai_url(raw: str | None) -> AIConfig | None:

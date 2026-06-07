@@ -6,7 +6,14 @@ from django.db import IntegrityError
 from django.utils import timezone
 from django.utils.translation import gettext as _
 
-from appeals.models import Appeal, AppealCategory, AppealComment, AppealHistoryEvent, Department
+from appeals.models import (
+    AILog,
+    Appeal,
+    AppealCategory,
+    AppealComment,
+    AppealHistoryEvent,
+    Department,
+)
 from appeals.tests.factories import (
     AppealCategoryFactory,
     AppealCommentFactory,
@@ -203,3 +210,50 @@ def test_appeal_is_not_overdue_when_closed_even_if_past_due():
     )
 
     assert appeal.is_overdue is False
+
+
+@pytest.mark.django_db
+@pytest.mark.integration
+def test_ai_log_keeps_record_when_category_deleted():
+    # Журнал вызова ИИ не должен мешать удалить категорию: ссылка обнуляется,
+    # а сама запись с расходом токенов сохраняется.
+    category = AppealCategoryFactory()
+    log = AILog.objects.create(
+        model="deepseek-v4-flash",
+        status=AILog.Status.OK,
+        description_in="Нужна справка",
+        chosen_category=category,
+        summary_out="Справка об обучении",
+        prompt_tokens=600,
+        cache_hit_tokens=512,
+    )
+
+    category.delete()
+    log.refresh_from_db()
+
+    assert log.chosen_category is None
+    assert log.prompt_tokens == 600
+
+
+@pytest.mark.django_db
+@pytest.mark.unit
+def test_ai_log_str_includes_status():
+    saved = AILog.objects.create(model="deepseek-v4-flash", status=AILog.Status.OK)
+
+    assert str(saved) == f"AILog #{saved.pk} (ok)"
+    assert str(AILog()) == "AILog"
+
+
+@pytest.mark.django_db
+@pytest.mark.unit
+def test_ai_log_undecided_allows_blank_category():
+    # Когда модель не смогла определить категорию — запись без категории валидна.
+    log = AILog.objects.create(
+        model="deepseek-v4-flash",
+        status=AILog.Status.UNDECIDED,
+        description_in="Во сколько обед?",
+        reason="Вопрос не относится ни к одной категории.",
+    )
+
+    assert log.chosen_category is None
+    assert log.status == AILog.Status.UNDECIDED

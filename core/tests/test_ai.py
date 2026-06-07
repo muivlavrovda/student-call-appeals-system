@@ -1,6 +1,8 @@
+from decimal import Decimal
+
 import pytest
 
-from core.ai import AIConfig, parse_ai_url
+from core.ai import AIConfig, compute_cost, parse_ai_url
 
 
 @pytest.mark.unit
@@ -54,3 +56,43 @@ def test_parse_rejects_malformed_value(raw):
     # Заданная, но испорченная строка должна явно падать, а не тихо отключать ИИ.
     with pytest.raises(ValueError):
         parse_ai_url(raw)
+
+
+@pytest.mark.unit
+def test_compute_cost_uses_tiered_rates():
+    # 1 млн токенов каждого вида по тарифам deepseek-v4-flash:
+    # hit 0.0028 + miss 0.14 + output 0.28 = 0.4228.
+    cost = compute_cost(
+        "deepseek-v4-flash",
+        cache_hit_tokens=1_000_000,
+        cache_miss_tokens=1_000_000,
+        completion_tokens=1_000_000,
+    )
+
+    assert cost == Decimal("0.42280000")
+
+
+@pytest.mark.unit
+def test_compute_cost_counts_cache_hit_cheaper_than_miss():
+    # Те же токены, но в кэше — должно быть существенно дешевле, чем мимо кэша.
+    hit = compute_cost(
+        "deepseek-v4-flash", cache_hit_tokens=1000, cache_miss_tokens=0, completion_tokens=0
+    )
+    miss = compute_cost(
+        "deepseek-v4-flash", cache_hit_tokens=0, cache_miss_tokens=1000, completion_tokens=0
+    )
+
+    assert hit < miss
+
+
+@pytest.mark.unit
+def test_compute_cost_unknown_model_is_zero():
+    # Неизвестная модель не должна мешать сохранить журнал — стоимость 0.
+    cost = compute_cost(
+        "some-other-model",
+        cache_hit_tokens=500,
+        cache_miss_tokens=500,
+        completion_tokens=500,
+    )
+
+    assert cost == Decimal(0)

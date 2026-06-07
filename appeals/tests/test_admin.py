@@ -5,13 +5,14 @@ from django.test import RequestFactory
 from django.utils import timezone
 
 from appeals.admin import (
+    AILogAdmin,
     AppealAdmin,
     AppealCommentAdmin,
     AppealCommentInline,
     AppealHistoryEventAdmin,
     AppealHistoryEventInline,
 )
-from appeals.models import Appeal, AppealComment, AppealHistoryEvent
+from appeals.models import AILog, Appeal, AppealComment, AppealHistoryEvent
 from appeals.roles import ADMIN_GROUP, OPERATOR_GROUP, RESPONSIBLE_GROUP, sync_access_groups
 from appeals.tests.factories import AppealFactory, DepartmentFactory
 from users.tests.factories import UserFactory
@@ -155,6 +156,33 @@ def test_comment_and_history_admin_are_readonly():
         "message",
         "created_at",
     }
+
+
+@pytest.mark.unit
+def test_ai_log_admin_is_readonly():
+    model_admin = AILogAdmin(AILog, AdminSite())
+
+    assert not model_admin.has_add_permission(None)
+    assert not model_admin.has_change_permission(None)
+    assert not model_admin.has_delete_permission(None)
+    # Сырые запрос/ответ и ошибка спрятаны в свёрнутую секцию «Отладка».
+    assert "raw_request" in model_admin.readonly_fields
+    assert "raw_response" in model_admin.readonly_fields
+
+
+@pytest.mark.unit
+def test_ai_log_admin_cache_savings_shows_share():
+    model_admin = AILogAdmin(AILog, AdminSite())
+    log = AILog(prompt_tokens=600, cache_hit_tokens=512)
+
+    assert model_admin.cache_savings(log) == "512 (85%)"
+
+
+@pytest.mark.unit
+def test_ai_log_admin_cache_savings_handles_no_tokens():
+    model_admin = AILogAdmin(AILog, AdminSite())
+
+    assert model_admin.cache_savings(AILog(prompt_tokens=0)) == "—"
 
 
 def _appeal_admin() -> AppealAdmin:

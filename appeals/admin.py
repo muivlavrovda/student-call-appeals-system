@@ -3,6 +3,7 @@ from django.utils.translation import gettext_lazy as _
 
 from appeals.access import can_view_appeal, visible_appeals_for
 from appeals.models import (
+    AILog,
     Appeal,
     AppealCategory,
     AppealComment,
@@ -345,6 +346,105 @@ class AppealHistoryEventAdmin(admin.ModelAdmin):
         "created_at",
     )
     fields = readonly_fields
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(AILog)
+class AILogAdmin(admin.ModelAdmin):
+    list_display = (
+        "created_at",
+        "status",
+        "model",
+        "chosen_category",
+        "summary_out",
+        "cost_usd",
+        "cache_savings",
+        "latency_ms",
+    )
+    list_filter = (
+        "status",
+        "model",
+        "created_at",
+    )
+    search_fields = (
+        "description_in",
+        "summary_out",
+        "reason",
+    )
+    readonly_fields = (
+        "created_at",
+        "status",
+        "model",
+        "description_in",
+        "chosen_category",
+        "summary_out",
+        "reason",
+        "prompt_tokens",
+        "cache_hit_tokens",
+        "cache_miss_tokens",
+        "completion_tokens",
+        "cost_usd",
+        "latency_ms",
+        "raw_request",
+        "raw_response",
+        "error",
+    )
+    fieldsets = (
+        (
+            None,
+            {
+                "fields": (
+                    "created_at",
+                    "status",
+                    "model",
+                    "description_in",
+                    "chosen_category",
+                    "summary_out",
+                    "reason",
+                )
+            },
+        ),
+        (
+            _("Tokens and cost"),
+            {
+                "fields": (
+                    "prompt_tokens",
+                    "cache_hit_tokens",
+                    "cache_miss_tokens",
+                    "completion_tokens",
+                    "cost_usd",
+                    "latency_ms",
+                )
+            },
+        ),
+        (
+            _("Debug"),
+            {
+                "classes": ("collapse",),
+                "fields": (
+                    "raw_request",
+                    "raw_response",
+                    "error",
+                ),
+            },
+        ),
+    )
+
+    @admin.display(description=_("Cache hit"))
+    def cache_savings(self, obj):
+        # Доля префикса, попавшая в кэш, — наглядно показывает экономию токенов.
+        if not obj.prompt_tokens:
+            return "—"
+        share = round(obj.cache_hit_tokens / obj.prompt_tokens * 100)
+        return f"{obj.cache_hit_tokens} ({share}%)"
 
     def has_add_permission(self, request):
         return False

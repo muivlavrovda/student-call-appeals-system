@@ -409,3 +409,103 @@ class AppealHistoryEvent(models.Model):
 
     def __str__(self) -> str:
         return _("History event for appeal #{id}").format(id=self.appeal_id)
+
+
+class AILog(models.Model):
+    """Запись об одном обращении к ИИ-модели для классификации.
+
+    Сохраняется на каждый вызов модели, в том числе при ошибке: это журнал для
+    контроля расхода токенов, стоимости и отладки. Человекочитаемые поля видны
+    сразу, а сырые запрос и ответ скрыты под отдельной секцией в админке.
+    """
+
+    class Status(models.TextChoices):
+        OK = "ok", _("Classified")
+        UNDECIDED = "undecided", _("Could not decide")
+        ERROR = "error", _("Error")
+
+    created_at = models.DateTimeField(
+        _("Created at"),
+        default=timezone.now,
+    )
+
+    model = models.CharField(
+        _("Model"),
+        max_length=100,
+    )
+
+    status = models.CharField(
+        _("Status"),
+        max_length=20,
+        choices=Status.choices,
+    )
+
+    # Что отдали модели и что она выбрала — в человекочитаемом виде.
+    description_in = models.TextField(
+        _("Call description"),
+        blank=True,
+    )
+
+    chosen_category = models.ForeignKey(
+        AppealCategory,
+        verbose_name=_("Chosen category"),
+        on_delete=models.SET_NULL,
+        related_name="ai_logs",
+        blank=True,
+        null=True,
+    )
+
+    summary_out = models.CharField(
+        _("Suggested summary"),
+        max_length=255,
+        blank=True,
+    )
+
+    reason = models.TextField(
+        _("Reason"),
+        blank=True,
+    )
+
+    # Расход токенов с учётом кэширования префикса (hit дешевле miss).
+    prompt_tokens = models.PositiveIntegerField(_("Prompt tokens"), default=0)
+    cache_hit_tokens = models.PositiveIntegerField(_("Cache hit tokens"), default=0)
+    cache_miss_tokens = models.PositiveIntegerField(_("Cache miss tokens"), default=0)
+    completion_tokens = models.PositiveIntegerField(_("Completion tokens"), default=0)
+
+    cost_usd = models.DecimalField(
+        _("Cost, USD"),
+        max_digits=12,
+        decimal_places=8,
+        default=0,
+    )
+
+    latency_ms = models.PositiveIntegerField(
+        _("Latency, ms"),
+        default=0,
+    )
+
+    # Сырые данные и текст ошибки — для глубокой отладки, скрыты в админке.
+    raw_request = models.JSONField(
+        _("Raw request"),
+        blank=True,
+        null=True,
+    )
+
+    raw_response = models.JSONField(
+        _("Raw response"),
+        blank=True,
+        null=True,
+    )
+
+    error = models.TextField(
+        _("Error"),
+        blank=True,
+    )
+
+    class Meta:
+        verbose_name = _("AI call log")
+        verbose_name_plural = _("AI call logs")
+        ordering = ["-created_at", "-pk"]
+
+    def __str__(self) -> str:
+        return f"AILog #{self.pk} ({self.status})" if self.pk else "AILog"
