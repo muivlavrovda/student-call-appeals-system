@@ -70,10 +70,18 @@ TEMPLATES = [
     },
 ]
 
+# Путь к файлу базы можно задать абсолютно через DJ_DB_PATH (так на хостинге БД
+# кладётся в постоянное хранилище /data, переживающее пересборку). Если не задан —
+# берём файл рядом с проектом, как при локальной разработке.
+if getenv("DJ_DB_PATH"):
+    DB_PATH = Path(getenv("DJ_DB_PATH"))
+else:
+    DB_PATH = BASE_DIR / getenv("DJ_SQLITE_NAME", "db.sqlite3")
+
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / getenv("DJ_SQLITE_NAME", "db.sqlite3"),
+        "NAME": DB_PATH,
     }
 }
 

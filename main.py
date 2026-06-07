@@ -33,6 +33,10 @@ def main() -> None:
     addrport = args[0] if args and ":" in args[0] else DEFAULT_ADDRPORT
     extra = [arg for arg in args if arg != addrport]
 
+    # На хостинге переносим заполненную базу в постоянное хранилище, если его
+    # ещё нет (локально это ничего не делает — путь совпадает с файлом в проекте).
+    execute_from_command_line(["manage.py", "ensure_db_seed"])
+
     # Сначала приводим схему БД в актуальное состояние.
     execute_from_command_line(["manage.py", "migrate"])
 
